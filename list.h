@@ -20,7 +20,6 @@ typedef struct cstl_list
 {
   cstl_list_node dummy;
   size_t size;
-  pthread_mutex_t lock;
 } cstl_list;
 
 int cstl_list_init(cstl_list *list);
@@ -29,5 +28,7 @@ int cstl_list_push_front(cstl_list *list, cstl_object *obj);
 cstl_object *cstl_list_pop_back(cstl_list *list);
 cstl_object *cstl_list_pop_front(cstl_list *list);
 int cstl_list_reverse(cstl_list *list);
+int cstl_list_duplicate(cstl_list *dst_list,cstl_list *src_list);
+
 void cstl_list_deinit(cstl_list *list);
 #endif

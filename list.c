@@ -26,8 +26,14 @@ static void cstl_list_node_free(cstl_list_node *node) {
     free(node);
   }
 }
-inline static bool cstl_list_valid(cstl_list *list) {
-  if (list == NULL || list->size == 0) {
+inline static bool cstl_list_empty(cstl_list *list) {
+  if (list->size == 0) {
+    return false;
+  }
+  return true;
+}
+inline static bool cstl_list_nil(cstl_list *list) {
+  if (list == NULL) {
     return false;
   }
   return true;
@@ -42,15 +48,13 @@ int cstl_list_init(cstl_list *list) {
   // list->dummy.next pointer list tail
   list->dummy.next = list->dummy.prev = NULL;
   list->size = 0;
-  pthread_mutex_init(&list->lock, NULL);
   return 0;
 }
 int cstl_list_insert(cstl_list *list, int pos, cstl_object *obj) {
-  if (list == NULL || obj == NULL) {
+  if (!cstl_list_nil(list) || !cstl_object_nil(obj)) {
     return -1;
   }
 
-  pthread_mutex_lock(&list->lock);
   cstl_list_node *node = list_node_alloc(obj);
   assert(node != NULL);
 
@@ -69,7 +73,6 @@ int cstl_list_insert(cstl_list *list, int pos, cstl_object *obj) {
     }
   }
   list->size++;
-  pthread_mutex_unlock(&list->lock);
   return 0;
 }
 int cstl_list_push_back(cstl_list *list, cstl_object *obj) {
@@ -79,12 +82,10 @@ int cstl_list_push_front(cstl_list *list, cstl_object *obj) {
   return cstl_list_insert(list, 0, obj);
 }
 int cstl_list_remove(cstl_list *list, int pos) {
-  if (!cstl_list_valid(list)) {
+  if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
     return -1;
   }
   cstl_list_node *node = NULL;
-  pthread_mutex_lock(&list->lock);
-
   if (pos >= 0) {
     node = list->dummy.prev;
     if (node == list->dummy.next) {
@@ -102,7 +103,6 @@ int cstl_list_remove(cstl_list *list, int pos) {
   }
   list->size--;
   cstl_list_node_free(node);
-  pthread_mutex_unlock(&list->lock);
   return 0;
 }
 cstl_object *cstl_list_pop_back(cstl_list *list) {
@@ -113,11 +113,9 @@ cstl_object *cstl_list_pop_front(cstl_list *list) {
 }
 
 int cstl_list_traverse(cstl_list *list) {
-  if (!cstl_list_valid(list)) {
+  if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
     return -1;
   }
-  pthread_mutex_lock(&list->lock);
-  cstl_list_node *first = list->dummy.prev;
   cstl_list_node *last = list->dummy.next;
   list->dummy.prev = list->dummy.next = NULL;
   for (; last != NULL; last = last->prev) {
@@ -131,6 +129,25 @@ int cstl_list_traverse(cstl_list *list) {
       list->dummy.next = last;
     }
   }
-  pthread_mutex_unlock(&list->lock);
+  return 0;
+}
+int cstl_list_duplicate(cstl_list *dst_list, cstl_list *src_list) {
+  if (!cstl_list_empty(src_list) || !cstl_list_nil(src_list) ||
+      !cstl_list_nil(dst_list)) {
+    return -1;
+  }
+  cstl_list_node *first = src_list->dummy.prev;
+  for (; first != NULL; first = first->next) {
+    if (dst_list->dummy.prev == NULL) {
+      dst_list->dummy.prev = dst_list->dummy.next = first;
+    } else {
+      cstl_list_node *tail = dst_list->dummy.next;
+      tail->next = first;
+      first->prev = tail;
+      tail = first;
+      dst_list->dummy.next = first;
+    }
+  }
+  return 0;
 }
 void cstl_list_deinit(cstl_list *list) {}
