@@ -15,14 +15,15 @@ static cstl_list_node *cstl_list_node_alloc(cstl_object *obj) {
     node = calloc(1, sizeof(cstl_list_node));
     assert(node != NULL);
     node->next = node->prev = NULL;
-    cstl_object_memcpy(&node->data, obj);
+    node->data = obj;
   }
   return node;
 }
-static void cstl_list_node_free(cstl_list_node *node) {
+static int cstl_list_node_free(cstl_list_node *node,
+                               void (*cstl_object_data_free)(void *)) {
   if (node != NULL) {
     node->prev = node->next = NULL;
-    cstl_object_deinit(&node->data);
+    cstl_object_deinit(&node->data, cstl_object_data_free);
     free(node);
   }
 }
@@ -38,7 +39,7 @@ inline static bool cstl_list_nil(cstl_list *list) {
   }
   return true;
 }
-int cstl_list_init(cstl_list *list) {
+int cstl_list_init(cstl_list *list, void (*cstl_object_data_free)(void *)) {
   if (list == NULL) {
     return -1;
   }
@@ -48,6 +49,7 @@ int cstl_list_init(cstl_list *list) {
   // list->dummy.next pointer list tail
   list->dummy.next = list->dummy.prev = NULL;
   list->size = 0;
+  list->cstl_object_data_free = cstl_object_data_free;
   return 0;
 }
 int cstl_list_insert(cstl_list *list, int pos, cstl_object *obj) {
@@ -81,9 +83,9 @@ int cstl_list_push_back(cstl_list *list, cstl_object *obj) {
 int cstl_list_push_front(cstl_list *list, cstl_object *obj) {
   return cstl_list_insert(list, 0, obj);
 }
-int cstl_list_remove(cstl_list *list, int pos) {
+cstl_list_node *cstl_list_remove(cstl_list *list, int pos) {
   if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
-    return -1;
+    return NULL;
   }
   cstl_list_node *node = NULL;
   if (pos >= 0) {
@@ -102,8 +104,7 @@ int cstl_list_remove(cstl_list *list, int pos) {
     }
   }
   list->size--;
-  cstl_list_node_free(node);
-  return 0;
+  return node;
 }
 cstl_object *cstl_list_pop_back(cstl_list *list) {
   return cstl_list_remove(list, -1);
