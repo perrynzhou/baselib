@@ -6,14 +6,20 @@
  ************************************************************************/
 
 #include "object.h"
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static int cstl_object_deinit(cstl_object *obj, cstl_object_data_free cb);
+static int cstl_object_init(cstl_object *obj, void *data,
+                            cstl_object_type obj_type);
 static inline bool cstl_object_valid_type(cstl_object_type type) {
   if (type < CSTL_STRING_OBJECT || type > CSTL_STRUCT_OBJECT) {
     return false;
   }
   return true;
 }
-static inline bool cstl_object_nil(cstl_object *obj) {
+bool cstl_object_nil(cstl_object *obj) {
   if (obj == NULL) {
     return false;
   }
@@ -28,7 +34,8 @@ cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
   }
   return obj;
 }
-int cstl_object_init(cstl_object *obj, void *data, cstl_object_type obj_type) {
+static int cstl_object_init(cstl_object *obj, void *data,
+                            cstl_object_type obj_type) {
   if (!cstl_object_nil(obj) || !(cstl_object_valid_type(obj_type))) {
     return -1;
   }
@@ -79,14 +86,13 @@ void *cstl_object_data(cstl_object *obj) {
   return data;
 }
 
-int cstl_object_deinit(cstl_object *obj,
-                       void (*cstl_object_data_free)(void *)) {
+static int cstl_object_deinit(cstl_object *obj, cstl_object_data_free cb) {
   if (!cstl_object_nil(obj)) {
-    if (obj->type == CSTL_STRING_OBJECT && cstl_object_data_free == NULL) {
+    if (obj->type == CSTL_STRING_OBJECT && cb == NULL) {
       return -1;
     }
-    if (obj->type == CSTL_STRING_OBJECT && cstl_object_data_free != NULL) {
-      cstl_object_data_free(obj->data.ptr);
+    if (obj->type == CSTL_STRING_OBJECT && cb != NULL) {
+      cb(obj->data.ptr);
       return 0;
     }
     if (obj->type == CSTL_STRING_OBJECT) {
@@ -97,9 +103,9 @@ int cstl_object_deinit(cstl_object *obj,
   }
   return -1;
 }
-int cstl_object_free(cstl_object *obj, void (*cstl_object_data_free)(void *)) {
+int cstl_object_free(cstl_object *obj, cstl_object_data_free cb) {
   if (!cstl_object_nil(obj)) {
-    if (cstl_object_deinit(obj, cstl_object_data_free) != 0) {
+    if (cstl_object_deinit(obj, cb) != 0) {
       return -1;
     }
     free(obj);

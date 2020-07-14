@@ -19,11 +19,10 @@ static cstl_list_node *cstl_list_node_alloc(cstl_object *obj) {
   }
   return node;
 }
-static int cstl_list_node_free(cstl_list_node *node,
-                               void (*cstl_object_data_free)(void *)) {
+static int cstl_list_node_free(cstl_list_node *node, cstl_object_data_free cb) {
   if (node != NULL) {
     node->prev = node->next = NULL;
-    cstl_object_deinit(&node->data, cstl_object_data_free);
+    cstl_object_free(&node->data, cb);
     free(node);
   }
 }
@@ -39,7 +38,7 @@ inline static bool cstl_list_nil(cstl_list *list) {
   }
   return true;
 }
-int cstl_list_init(cstl_list *list, void (*cstl_object_data_free)(void *)) {
+int cstl_list_alloc(cstl_list *list, cstl_object_data_free free) {
   if (list == NULL) {
     return -1;
   }
@@ -49,7 +48,7 @@ int cstl_list_init(cstl_list *list, void (*cstl_object_data_free)(void *)) {
   // list->dummy.next pointer list tail
   list->dummy.next = list->dummy.prev = NULL;
   list->size = 0;
-  list->cstl_object_data_free = cstl_object_data_free;
+  list->free = free;
   return 0;
 }
 int cstl_list_insert(cstl_list *list, int pos, cstl_object *obj) {
@@ -113,7 +112,7 @@ cstl_object *cstl_list_pop_front(cstl_list *list) {
   return cstl_list_remove(list, 0);
 }
 
-int cstl_list_traverse(cstl_list *list) {
+int cstl_list_reverse(cstl_list *list) {
   if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
     return -1;
   }
@@ -151,4 +150,19 @@ int cstl_list_duplicate(cstl_list *dst_list, cstl_list *src_list) {
   }
   return 0;
 }
-void cstl_list_deinit(cstl_list *list) {}
+int cstl_list_traverse(cstl_list *list, cstl_object_cb cb) {
+  cstl_list_node *node = list->dummy.prev;
+  for (; node != NULL; node = node->next) {
+    if (cb != NULL) {
+      cb(node->data);
+    }
+  }
+}
+void cstl_list_free(cstl_list *list) {
+  if (list != NULL) {
+    cstl_list_node *node = list->dummy.prev;
+    for (; node != NULL; node = node->next) {
+      cstl_list_node_free(node, list->free);
+    }
+  }
+}

@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+typedef void (*cstl_object_data_free)(void *obj);
+typedef void (*cstl_object_cb)(void *obj);
 typedef enum cstl_object_type {
   CSTL_STRING_OBJECT = 0,
   CSTL_UINT_OBJECT,
@@ -29,10 +31,8 @@ typedef struct cstl_object {
 } cstl_object;
 
 cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type);
-int cstl_object_init(cstl_object *obj, void *data, cstl_object_type obj_type);
 void *cstl_object_data(cstl_object *obj);
-int cstl_object_deinit(cstl_object *obj, void (*cstl_object_data_free)(void *));
-int cstl_object_free(cstl_object *obj, void (*cstl_object_data_free)(void *));
+int cstl_object_free(cstl_object *obj, cstl_object_data_free cb);
 bool cstl_object_nil(cstl_object *obj);
 int cstl_object_compare(cstl_object *src, cstl_object *dst);
 #endif
