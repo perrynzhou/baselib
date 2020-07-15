@@ -9,12 +9,7 @@
 #define _CSTL_LIST_H
 #include "object.h"
 #include <pthread.h>
-typedef struct cstl_list_node {
-  cstl_object *data;
-  struct cstl_list_node *next;
-  struct cstl_list_node *prev;
-} cstl_list_node;
-
+typedef struct cstl_list_node  cstl_list_node;
 typedef struct cstl_list {
   cstl_list_node dummy;
   size_t size;

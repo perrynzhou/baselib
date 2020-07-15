@@ -88,10 +88,9 @@ void *cstl_object_data(cstl_object *obj) {
   }
   return data;
 }
-
 void cstl_object_free(cstl_object *obj, cstl_object_data_free cb) {
   if (!cstl_object_is_nil(obj)) {
-    if (obj->type == CSTL_STRING_OBJECT || obj->type == CSTL_STRING_OBJECT) {
+    if (obj->type == CSTL_STRING_OBJECT || obj->type == CSTL_STRUCT_OBJECT) {
       if (cb != NULL) {
         cb(obj->data.ptr);
       }

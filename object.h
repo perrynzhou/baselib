@@ -16,7 +16,7 @@ typedef enum cstl_object_type {
   CSTL_STRING_OBJECT = 0,
   CSTL_UINT64_OBJECT,
   CSTL_INT64_OBJECT,
-   CSTL_UINT32_OBJECT,
+  CSTL_UINT32_OBJECT,
   CSTL_INT32_OBJECT,
   CSTL_DOUBLE_OBJECT,
   CSTL_STRUCT_OBJECT
@@ -37,7 +37,6 @@ typedef struct cstl_object {
 cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type);
 void *cstl_object_data(cstl_object *obj);
 void cstl_object_free(cstl_object *obj, cstl_object_data_free cb);
-//true is nil
+// true is nil
 bool cstl_object_is_nil(cstl_object *obj);
-int cstl_object_compare(cstl_object *src, cstl_object *dst);
 #endif

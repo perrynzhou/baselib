@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 void test_int(void) {
-  size_t n = 10;
+  size_t n = 100;
   cstl_stack *s = cstl_stack_alloc(n, NULL);
-  cstl_object *objs[10] = {NULL};
+  cstl_object *objs[100] = {NULL};
   for (int i = 0; i < n; i++) {
     int data = rand() % 30 + i;
     objs[i] = cstl_object_alloc(&data, CSTL_INT32_OBJECT);
