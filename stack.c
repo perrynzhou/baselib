@@ -68,23 +68,11 @@ int cstl_stack_traverse(cstl_stack *s,cstl_object_cb  cb)
 {
 
 }
-#ifdef CSTL_STACK_TEST
-int main(void) {
-  size_t n = 10;
-  cstl_stack  *s = cstl_stack_alloc(n,NULL);
-  cstl_object  *objs[10] = {NULL};
-  for(int i=0;i<n;i++) {
-    int data = rand()%30+i;
-    objs[i] = cstl_object_alloc(&data,CSTL_UINT_OBJECT);
-    cstl_stack_push(s,objs[i]);
-    fprintf(stdout,"obj :%p,push data:%d\n",objs[i],data);
+cstl_object *cstl_stack_top(cstl_stack *s)
+{
+  cstl_object *obj = NULL;
+  if(s!=NULL&&s->cur_size>0) {
+     obj = s->data[s->cur_size-1];
   }
-  fprintf(stdout,"*********************\n");
-  for(int i=0;i<n;i++){
-    cstl_object *obj = cstl_stack_pop(s);
-    int *data = (int *)cstl_object_data(obj);
-    fprintf(stdout,"obj:%p,pop data:%d\n",obj,*data);
-  }
-  cstl_stack_free(s);
- }
-#endif
+  return  obj;
+}

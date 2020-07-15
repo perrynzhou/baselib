@@ -18,6 +18,7 @@ typedef struct cstl_stack {
 
 cstl_stack *cstl_stack_alloc(uint64_t init_size,cstl_object_data_free cb);
 cstl_object *cstl_stack_pop(cstl_stack *s);
+cstl_object *cstl_stack_top(cstl_stack *s);
 int cstl_stack_push(cstl_stack *s,cstl_object *obj);
 int cstl_stack_expand(cstl_stack *s);
 int cstl_stack_traverse(cstl_stack *s,cstl_object_cb  cb);

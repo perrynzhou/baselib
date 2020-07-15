@@ -19,37 +19,34 @@ static inline bool cstl_object_valid_type(cstl_object_type type) {
   }
   return true;
 }
-bool cstl_object_nil(cstl_object *obj) {
+bool cstl_object_is_nil(cstl_object *obj) {
   if (obj == NULL) {
-    return false;
+    return true;
   }
-  return true;
+  return false;
 }
 cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
+  if (data == NULL || !(cstl_object_valid_type(obj_type))) {
+    return NULL;
+  }
   cstl_object *obj = (cstl_object *)calloc(1, sizeof(cstl_object));
   assert(obj != NULL);
-  if (cstl_object_init(obj, data, obj_type) != 0) {
-    free(obj);
-    obj = NULL;
-  }
-  return obj;
-}
-static int cstl_object_init(cstl_object *obj, void *data,
-                            cstl_object_type obj_type) {
-  if (!cstl_object_nil(obj) || !(cstl_object_valid_type(obj_type))) {
-    return -1;
-  }
-  size_t len = 0;
-  obj->type = obj->type;
+  obj->type = obj_type;
   switch (obj_type) {
   case CSTL_STRING_OBJECT:
     obj->data.ptr = strdup((char *)data);
     break;
-  case CSTL_UINT_OBJECT:
+  case CSTL_UINT64_OBJECT:
     obj->data.u64 = *((uint64_t *)data);
     break;
-  case CSTL_INT_OBJECT:
+  case CSTL_INT64_OBJECT:
     obj->data.i64 = *((int64_t *)data);
+    break;
+  case CSTL_UINT32_OBJECT:
+    obj->data.u32 = *((uint32_t *)data);
+    break;
+  case CSTL_INT32_OBJECT:
+    obj->data.i32 = *((int32_t *)data);
     break;
   case CSTL_DOUBLE_OBJECT:
     obj->data.d64 = *((double *)data);
@@ -60,7 +57,7 @@ static int cstl_object_init(cstl_object *obj, void *data,
   default:
     break;
   }
-  return 0;
+  return obj;
 }
 void *cstl_object_data(cstl_object *obj) {
   void *data = NULL;
@@ -68,11 +65,17 @@ void *cstl_object_data(cstl_object *obj) {
   case CSTL_STRING_OBJECT:
     data = obj->data.ptr;
     break;
-  case CSTL_UINT_OBJECT:
+  case CSTL_UINT64_OBJECT:
     data = &obj->data.u64;
     break;
-  case CSTL_INT_OBJECT:
+  case CSTL_INT64_OBJECT:
     data = &obj->data.i64;
+    break;
+  case CSTL_UINT32_OBJECT:
+    data = &obj->data.u32;
+    break;
+  case CSTL_INT32_OBJECT:
+    data = &obj->data.i32;
     break;
   case CSTL_DOUBLE_OBJECT:
     data = &obj->data.d64;
@@ -86,30 +89,13 @@ void *cstl_object_data(cstl_object *obj) {
   return data;
 }
 
-static int cstl_object_deinit(cstl_object *obj, cstl_object_data_free cb) {
-  if (!cstl_object_nil(obj)) {
-    if (obj->type == CSTL_STRING_OBJECT && cb == NULL) {
-      return -1;
-    }
-    if (obj->type == CSTL_STRING_OBJECT && cb != NULL) {
-      cb(obj->data.ptr);
-      return 0;
-    }
-    if (obj->type == CSTL_STRING_OBJECT) {
-      free(obj->data.ptr);
-      obj->data.ptr = NULL;
-      return 0;
+void cstl_object_free(cstl_object *obj, cstl_object_data_free cb) {
+  if (!cstl_object_is_nil(obj)) {
+    if (obj->type == CSTL_STRING_OBJECT || obj->type == CSTL_STRING_OBJECT) {
+      if (cb != NULL) {
+        cb(obj->data.ptr);
+      }
+      free(obj);
     }
   }
-  return -1;
-}
-int cstl_object_free(cstl_object *obj, cstl_object_data_free cb) {
-  if (!cstl_object_nil(obj)) {
-    if (cstl_object_deinit(obj, cb) != 0) {
-      return -1;
-    }
-    free(obj);
-    return 0;
-  }
-  return -1;
 }
