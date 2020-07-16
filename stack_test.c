@@ -11,6 +11,7 @@
 #include <stdlib.h>
 void test_int(void) {
   size_t n = 100;
+
   cstl_stack *s = cstl_stack_alloc(n, NULL);
   cstl_object *objs[100] = {NULL};
   for (int i = 0; i < n; i++) {

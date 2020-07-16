@@ -26,12 +26,8 @@ static cstl_queue_node *cstl_queue_node_alloc(cstl_object *obj) {
 }
 static void cstl_queue_node_free(cstl_queue *q, cstl_queue_node *node) {
   if (node != NULL) {
-    if (q->funcs->data_free_func != NULL) {
-      void *data = cstl_object_data(node->data);
-      q->funcs->data_free_func(data);
-    }
     if (q->funcs->object_free_func != NULL) {
-      q->funcs->object_free_func(node->data);
+      q->funcs->object_free_func(node->data, q->funcs->data_free_func);
     }
     free(node);
     node = NULL;
@@ -41,7 +37,7 @@ int cstl_queue_init(cstl_queue *q, cstl_object_func *funcs) {
   if (q != NULL) {
     q->head = q->tail = NULL;
     q->size = 0;
-    if (q->funcs != NULL) {
+    if (funcs != NULL) {
       q->funcs = calloc(1, sizeof(cstl_object_func));
       if (q->funcs == NULL) {
         return -1;

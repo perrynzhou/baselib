@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define CSTL_STACK_INIT_SIZE (8)
 int cstl_stack_init(cstl_stack *s, uint64_t init_size,
                     cstl_object_func *funcs) {
@@ -79,11 +80,8 @@ void cstl_stack_deinit(cstl_stack *s) {
     for (size_t i = 0; i < s->cur_size; i++) {
       cstl_object *obj = s->data[i];
       if (s->funcs != NULL) {
-        if (s->funcs->data_free_func != NULL) {
-          s->funcs->data_free_func(cstl_object_data(obj));
-        }
         if (s->funcs->object_free_func != NULL) {
-          s->funcs->object_free_func(obj);
+          s->funcs->object_free_func(obj,s->funcs->data_free_func);
         }
       }
     }

@@ -10,6 +10,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+static inline bool cstl_object_valid_type(cstl_object_type type) {
+  if (type < CSTL_STRING_OBJECT || type > CSTL_STRUCT_OBJECT) {
+    return false;
+  }
+  return true;
+}
+bool cstl_object_is_nil(cstl_object *obj) {
+  if (obj == NULL) {
+    return true;
+  }
+  return false;
+}
 cstl_object_func *cstl_object_func_alloc(cstl_object_release_data data_free_func,cstl_object_release object_free_func,cstl_object_process  object_process_func){
   if(data_free_func==NULL &&object_free_func==NULL &&object_process_func==NULL)
   {
@@ -62,18 +74,7 @@ int cstl_object_init(cstl_object *obj, void *data, cstl_object_type obj_type) {
   }
   return 0;
 }
-static inline bool cstl_object_valid_type(cstl_object_type type) {
-  if (type < CSTL_STRING_OBJECT || type > CSTL_STRUCT_OBJECT) {
-    return false;
-  }
-  return true;
-}
-bool cstl_object_is_nil(cstl_object *obj) {
-  if (obj == NULL) {
-    return true;
-  }
-  return false;
-}
+
 cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
   cstl_object *obj = (cstl_object *)calloc(1, sizeof(cstl_object));
   if (cstl_object_init(obj, data, obj_type) != 0) {
