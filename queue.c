@@ -24,22 +24,41 @@ static cstl_queue_node *cstl_queue_node_alloc(cstl_object *obj) {
   }
   return node;
 }
-static void cstl_queue_node_free(cstl_queue_node *node,
-                                 cstl_object_data_free dfree) {
+static void cstl_queue_node_free(cstl_queue *q, cstl_queue_node *node) {
   if (node != NULL) {
-    if (dfree != NULL) {
-      cstl_object_free(node->data, dfree);
+    if (q->funcs->data_free_func != NULL) {
+      void *data = cstl_object_data(node->data);
+      q->funcs->data_free_func(data);
+    }
+    if (q->funcs->object_free_func != NULL) {
+      q->funcs->object_free_func(node->data);
     }
     free(node);
     node = NULL;
   }
 }
-cstl_queue *cstl_queue_alloc(cstl_object_data_free dfree) {
-  cstl_queue *q = (cstl_queue *)calloc(1, sizeof(cstl_queue));
+int cstl_queue_init(cstl_queue *q, cstl_object_func *funcs) {
   if (q != NULL) {
     q->head = q->tail = NULL;
     q->size = 0;
-    q->free = dfree;
+    if (q->funcs != NULL) {
+      q->funcs = calloc(1, sizeof(cstl_object_func));
+      if (q->funcs == NULL) {
+        return -1;
+      }
+      q->funcs->data_free_func = funcs->data_free_func;
+      q->funcs->object_free_func = funcs->object_free_func;
+      q->funcs->object_process_func = funcs->object_process_func;
+      return 0;
+    }
+    return -1;
+  }
+}
+cstl_queue *cstl_queue_alloc(cstl_object_func *funcs) {
+  cstl_queue *q = (cstl_queue *)calloc(1, sizeof(cstl_queue));
+  if (cstl_queue_init(q, funcs) != 0) {
+    free(q);
+    q = NULL;
   }
   return q;
 }
@@ -85,24 +104,32 @@ bool cstl_queue_is_empty(cstl_queue *q) {
   }
   return false;
 }
-void cstl_queue_traverse(cstl_queue *q, cstl_object_cb cb) {
-  if (cb != NULL) {
+void cstl_queue_traverse(cstl_queue *q) {
+  if (q != NULL && q->size > 0) {
     cstl_queue_node *tail = q->tail;
     for (; tail != NULL; tail = tail->next) {
       cstl_object *object = tail->data;
-      cb(object);
+      if (q->funcs->object_process_func != NULL) {
+        q->funcs->object_process_func(object);
+      }
+    }
+  }
+}
+
+void cstl_queue_deinit(cstl_queue *q) {
+  if (q != NULL) {
+    cstl_queue_node *tail = q->tail;
+    for (; tail != NULL; tail = tail->next) {
+      cstl_queue_node *node = tail;
+      cstl_queue_node_free(q, node);
+      --q->size;
     }
   }
 }
 void cstl_queue_free(cstl_queue *q) {
 
+  cstl_queue_deinit(q);
   if (q != NULL) {
-    cstl_queue_node *tail = q->tail;
-    for (; tail != NULL; tail = tail->next) {
-      cstl_queue_node *node = tail;
-      cstl_queue_node_free(node, q->free);
-      --q->size;
-    }
     free(q);
     q = NULL;
   }

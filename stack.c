@@ -6,21 +6,43 @@
  ************************************************************************/
 
 #include "stack.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #define CSTL_STACK_INIT_SIZE (8)
-cstl_stack *cstl_stack_alloc(uint64_t init_size,cstl_object_data_free cb) {
+int cstl_stack_init(cstl_stack *s, uint64_t init_size,
+                    cstl_object_func *funcs) {
+
+  if (s == NULL) {
+    return -1;
+  }
+  memset(s, 0, sizeof(cstl_stack));
   if (init_size < CSTL_STACK_INIT_SIZE) {
     init_size = CSTL_STACK_INIT_SIZE;
   }
-  cstl_stack *s = (cstl_stack *)calloc(1,sizeof(cstl_stack));
-  assert(s!=NULL);
   s->max_size = init_size;
   s->cur_size = 0;
   s->data = (cstl_object **)calloc(s->max_size, sizeof(cstl_object *));
   assert(s->data != NULL);
-  s->cb = cb;
+  if (funcs != NULL) {
+    s->funcs = cstl_object_func_alloc(funcs->data_free_func,funcs->object_free_func,funcs->object_process_func);
+    if(s->funcs==NULL) {
+      free(s->data);
+      s->data = NULL;
+      return -1;
+    }
+  }
+  return 0;
+}
+cstl_stack *cstl_stack_alloc(uint64_t init_size, cstl_object_func *funcs) {
+
+  cstl_stack *s = (cstl_stack *)calloc(1, sizeof(cstl_stack));
+  if (cstl_stack_init(s, init_size, funcs) != 0) {
+    if (s != NULL && s->data != NULL) {
+      free(s);
+      s = NULL;
+    }
+  }
   return s;
 }
 cstl_object *cstl_stack_pop(cstl_stack *s) {
@@ -52,27 +74,38 @@ int cstl_stack_expand(cstl_stack *s) {
   s->data = data;
   return 0;
 }
-void cstl_stack_free(cstl_stack *s) {
+void cstl_stack_deinit(cstl_stack *s) {
   if (s != NULL) {
     for (size_t i = 0; i < s->cur_size; i++) {
-      if (s->cb != NULL) {
-        cstl_object_free(s->data[i], s->cb);
+      cstl_object *obj = s->data[i];
+      if (s->funcs != NULL) {
+        if (s->funcs->data_free_func != NULL) {
+          s->funcs->data_free_func(cstl_object_data(obj));
+        }
+        if (s->funcs->object_free_func != NULL) {
+          s->funcs->object_free_func(obj);
+        }
       }
     }
+    if (s->funcs != NULL) {
+      cstl_object_func_free(s->funcs);
+    }
     free(s->data);
+    s = NULL;
+  }
+}
+void cstl_stack_free(cstl_stack *s) {
+  cstl_stack_deinit(s);
+  if (s != NULL) {
     free(s);
     s = NULL;
   }
 }
-int cstl_stack_traverse(cstl_stack *s,cstl_object_cb  cb)
-{
-
-}
-cstl_object *cstl_stack_top(cstl_stack *s)
-{
+int cstl_stack_traverse(cstl_stack *s) {}
+cstl_object *cstl_stack_top(cstl_stack *s) {
   cstl_object *obj = NULL;
-  if(s!=NULL&&s->cur_size>0) {
-     obj = s->data[s->cur_size-1];
+  if (s != NULL && s->cur_size > 0) {
+    obj = s->data[s->cur_size - 1];
   }
-  return  obj;
+  return obj;
 }

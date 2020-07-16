@@ -10,8 +10,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-typedef void (*cstl_object_data_free)(void *obj);
-typedef void (*cstl_object_cb)(void *obj);
+typedef void (*cstl_object_release_data)(void *data);
+typedef void (*cstl_object_release)(cstl_object *obj);
+typedef void (*cstl_object_process)(cstl_object *obj);
+
 typedef enum cstl_object_type {
   CSTL_STRING_OBJECT = 0,
   CSTL_UINT64_OBJECT,
@@ -33,10 +35,22 @@ typedef struct cstl_object {
   } data;
   uint8_t type;
 } cstl_object;
+typedef struct cstl_object_func {
+  //how to release data in cstl_object
+  cstl_object_release_data data_free_func;
+  //which release method for cstl_object,deinit or free
+  cstl_object_release object_free_func;
+  //method for process cstl_object
+  cstl_object_process  object_process_func;
+} cstl_object_func;
 
+cstl_object_func *cstl_object_func_alloc( cstl_object_release_data data_free_func,cstl_object_release object_free_func,cstl_object_process  object_process_func);
+void cstl_object_func_free(cstl_object_func *func);
 cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type);
+int cstl_objeect_init(cstl_object *obj, void *data, cstl_object_type obj_type);
 void *cstl_object_data(cstl_object *obj);
-void cstl_object_free(cstl_object *obj, cstl_object_data_free cb);
+void cstl_object_deinit(cstl_object *obj, cstl_object_release_data cb);
+void cstl_object_free(cstl_object *obj, cstl_object_release_data cb);
 // true is nil
 bool cstl_object_is_nil(cstl_object *obj);
 #endif

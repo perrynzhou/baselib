@@ -10,27 +10,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-static int cstl_object_deinit(cstl_object *obj, cstl_object_data_free cb);
-static int cstl_object_init(cstl_object *obj, void *data,
-                            cstl_object_type obj_type);
-static inline bool cstl_object_valid_type(cstl_object_type type) {
-  if (type < CSTL_STRING_OBJECT || type > CSTL_STRUCT_OBJECT) {
-    return false;
-  }
-  return true;
-}
-bool cstl_object_is_nil(cstl_object *obj) {
-  if (obj == NULL) {
-    return true;
-  }
-  return false;
-}
-cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
-  if (data == NULL || !(cstl_object_valid_type(obj_type))) {
+cstl_object_func *cstl_object_func_alloc(cstl_object_release_data data_free_func,cstl_object_release object_free_func,cstl_object_process  object_process_func){
+  if(data_free_func==NULL &&object_free_func==NULL &&object_process_func==NULL)
+  {
     return NULL;
   }
-  cstl_object *obj = (cstl_object *)calloc(1, sizeof(cstl_object));
-  assert(obj != NULL);
+  cstl_object_func *func = (cstl_object_func *)calloc(1,sizeof(cstl_object_func));
+  if(func !=NULL) {
+      func->data_free_func =data_free_func;
+      func->object_free_func=object_free_func;
+      func->object_process_func =object_process_func;
+  }
+  return func;
+
+}
+void cstl_object_func_free(cstl_object_func *func){
+  if(func!=NULL){
+    free(func);
+    func = NULL;
+  }
+}
+int cstl_object_init(cstl_object *obj, void *data, cstl_object_type obj_type) {
+  if (obj == NULL || data == NULL || !(cstl_object_valid_type(obj_type))) {
+    return -1;
+  }
   obj->type = obj_type;
   switch (obj_type) {
   case CSTL_STRING_OBJECT:
@@ -56,6 +59,26 @@ cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
     break;
   default:
     break;
+  }
+  return 0;
+}
+static inline bool cstl_object_valid_type(cstl_object_type type) {
+  if (type < CSTL_STRING_OBJECT || type > CSTL_STRUCT_OBJECT) {
+    return false;
+  }
+  return true;
+}
+bool cstl_object_is_nil(cstl_object *obj) {
+  if (obj == NULL) {
+    return true;
+  }
+  return false;
+}
+cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type) {
+  cstl_object *obj = (cstl_object *)calloc(1, sizeof(cstl_object));
+  if (cstl_object_init(obj, data, obj_type) != 0) {
+    free(obj);
+    obj = NULL;
   }
   return obj;
 }
@@ -88,13 +111,18 @@ void *cstl_object_data(cstl_object *obj) {
   }
   return data;
 }
-void cstl_object_free(cstl_object *obj, cstl_object_data_free cb) {
+void cstl_object_deinit(cstl_object *obj, cstl_object_release_data cb) {
   if (!cstl_object_is_nil(obj)) {
     if (obj->type == CSTL_STRING_OBJECT || obj->type == CSTL_STRUCT_OBJECT) {
       if (cb != NULL) {
         cb(obj->data.ptr);
       }
-      free(obj);
     }
+  }
+}
+void cstl_object_free(cstl_object *obj, cstl_object_release_data cb) {
+  cstl_object_deinit(obj, cb);
+  if (obj != NULL) {
+    free(obj);
   }
 }

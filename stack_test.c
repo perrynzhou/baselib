@@ -29,7 +29,12 @@ void test_int(void) {
 }
 void test_string(void) {
   size_t n = 10;
-  cstl_stack *s = cstl_stack_alloc(n, free);
+  cstl_object_func fn = {
+    .data_free_func = free,
+    .object_free_func =cstl_object_free,
+    .object_process_func = NULL,
+  };
+  cstl_stack *s = cstl_stack_alloc(n, &fn);
   cstl_object *objs[10] = {NULL};
   for (int i = 0; i < n; i++) {
     char *data = (char *)calloc(64, sizeof(char));
