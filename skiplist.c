@@ -10,107 +10,90 @@
 
 #define CSTL_SKIPLIST_MAXLEVEL 32 /* Should be enough for 2^64 elements */
 #define CSTL_SKIPLIST_P 0.25      /* Skiplist P = 1/4 */
-struct cstl_skiplist_node
-{
+struct cstl_skiplist_node {
   int64_t key;
-  cstl_object *data;
+  struct cstl_object *data;
   size_t level;
-  cstl_skiplist_node *next_nodes[0];
+  struct cstl_skiplist_node *next_nodes[0];
 };
-int cstl_skiplist_random_level(void)
-{
+int cstl_skiplist_random_level(void) {
   int level = 1;
   while ((random() & 0xFFFF) < (CSTL_SKIPLIST_P * 0xFFFF))
     level += 1;
   return (level < CSTL_SKIPLIST_MAXLEVEL) ? level : CSTL_SKIPLIST_MAXLEVEL;
 }
-static cstl_skiplist_node *cstl_skiplist_node_alloc(int64_t key, cstl_object *obj)
-{
-  cstl_skiplist_node *node = NULL;
-  if (obj != NULL)
-  {
+static struct cstl_skiplist_node *
+cstl_skiplist_node_alloc(int64_t key, struct cstl_object *obj) {
+  struct cstl_skiplist_node *node = NULL;
+  if (obj != NULL) {
     int level = cstl_skiplist_random_level();
-    node = calloc(1, sizeof(cstl_skiplist_node) + sizeof(cstl_skiplist_node *) * level);
+    node = calloc(1, sizeof(struct cstl_skiplist_node) +
+                         sizeof(struct cstl_skiplist_node *) * level);
     node->level = level;
     node->data = obj;
     node->key = key;
-    memset(node->next_nodes, 0, sizeof(cstl_skiplist_node *) * level);
+    memset(node->next_nodes, 0, sizeof(struct cstl_skiplist_node *) * level);
   }
   return node;
 }
-static void cstl_skiplist_node_free(cstl_skiplist *sl,
-                                    cstl_skiplist_node *node)
-{
-  if (sl != NULL && node != NULL)
-  {
-    if (sl->funcs != NULL && sl->funcs->object_free_func != NULL)
-    {
+static void cstl_skiplist_node_free(struct cstl_skiplist *sl,
+                                    struct cstl_skiplist_node *node) {
+  if (sl != NULL && node != NULL) {
+    if (sl->funcs != NULL && sl->funcs->object_free_func != NULL) {
       sl->funcs->object_free_func(node->data, sl->funcs->data_free_func);
     }
-    if (node->next_nodes != NULL)
-    {
+    if (node->next_nodes != NULL) {
       free(node->next_nodes);
     }
     free(node);
     node = NULL;
   }
 }
-int cstl_skiplist_init(cstl_skiplist *sl, cstl_object_func *funcs)
-{
-  sl->head =
-      calloc(1, sizeof(cstl_skiplist_node) +
-                    sizeof(cstl_skiplist_node *) * CSTL_SKIPLIST_MAXLEVEL);
-  if (sl->head == NULL)
-  {
+int cstl_skiplist_init(struct cstl_skiplist *sl,
+                       struct cstl_object_func *funcs) {
+  sl->head = calloc(1, sizeof(struct cstl_skiplist_node) +
+                           sizeof(struct cstl_skiplist_node *) *
+                               CSTL_SKIPLIST_MAXLEVEL);
+  if (sl->head == NULL) {
     return -1;
   }
   sl->head->data = NULL;
   sl->max_level = CSTL_SKIPLIST_MAXLEVEL;
   sl->funcs =
-      cstl_object_func_alloc(funcs->data_free_func, funcs->object_free_func, funcs->object_process_func);
+      cstl_object_func_alloc(funcs->data_free_func, funcs->object_free_func,
+                             funcs->object_process_func);
   return 0;
 }
-cstl_skiplist *cstl_skiplist_alloc(cstl_object_func *funcs)
-{
-  cstl_skiplist *sl = calloc(1, sizeof(cstl_skiplist));
-  if (sl != NULL)
-  {
-    if (cstl_skiplist_init(sl, funcs) != 0)
-    {
+struct cstl_skiplist *cstl_skiplist_alloc(struct cstl_object_func *funcs) {
+  struct cstl_skiplist *sl = calloc(1, sizeof(struct cstl_skiplist));
+  if (sl != NULL) {
+    if (cstl_skiplist_init(sl, funcs) != 0) {
       free(sl);
       sl = NULL;
     }
   }
   return sl;
 }
-int cstl_skiplist_push(cstl_skiplist *sl, int64_t key, cstl_object *obj)
-{
-  cstl_skiplist_node *updates[sl->max_level];
-  if (sl != NULL && obj != NULL)
-  {
-    memset(&updates, 0, sizeof(cstl_skiplist_node *) * sl->max_level);
-    cstl_skiplist_node *cur = sl->head;
-    for (size_t i = sl->max_level - 1; i >= 0; i--)
-    {
-      if (cur->next_nodes[i] != NULL)
-      {
-        if (cur->next_nodes[i]->key > key)
-        {
+int cstl_skiplist_push(struct cstl_skiplist *sl, int64_t key,
+                       struct cstl_object *obj) {
+  struct cstl_skiplist_node *updates[sl->max_level];
+  if (sl != NULL && obj != NULL) {
+    memset(&updates, 0, sizeof(struct cstl_skiplist_node *) * sl->max_level);
+    struct cstl_skiplist_node *cur = sl->head;
+    for (size_t i = sl->max_level - 1; i >= 0; i--) {
+      if (cur->next_nodes[i] != NULL) {
+        if (cur->next_nodes[i]->key > key) {
           updates[i] = cur;
-        }
-        else
-        {
-          while (cur->next_nodes[i]->key < key)
-          {
+        } else {
+          while (cur->next_nodes[i]->key < key) {
             cur = cur->next_nodes[i];
           }
           updates[i] = cur;
         }
       }
     }
-    cstl_skiplist_node *node = cstl_skiplist_node_alloc(key, obj);
-    for (size_t i = 0; i < node->level - 1; i++)
-    {
+    struct cstl_skiplist_node *node = cstl_skiplist_node_alloc(key, obj);
+    for (size_t i = 0; i < node->level - 1; i++) {
       node->next_nodes[i] = updates[i]->next_nodes[i];
       updates[i]->next_nodes[i] = node->next_nodes[i];
     }
@@ -118,41 +101,29 @@ int cstl_skiplist_push(cstl_skiplist *sl, int64_t key, cstl_object *obj)
   }
   return -1;
 }
-int cstl_skiplist_pop(cstl_skiplist *sl, int64_t key)
-{
-  if (sl != NULL)
-  {
-    cstl_skiplist_node *cur = sl->head;
-    cstl_skiplist_node *updates[sl->max_level];
-    cstl_skiplist_node *res = NULL;
-    for (size_t i = sl->max_level - 1; i >= 0; i--)
-    {
-      if (cur->next_nodes[i] != NULL)
-      {
-        if (cur->next_nodes[i]->key > key)
-        {
+int cstl_skiplist_pop(struct cstl_skiplist *sl, int64_t key) {
+  if (sl != NULL) {
+    struct cstl_skiplist_node *cur = sl->head;
+    struct cstl_skiplist_node *updates[sl->max_level];
+    struct cstl_skiplist_node *res = NULL;
+    for (size_t i = sl->max_level - 1; i >= 0; i--) {
+      if (cur->next_nodes[i] != NULL) {
+        if (cur->next_nodes[i]->key > key) {
           updates[i] = NULL;
-        }
-        else if (cur->next_nodes[i]->key < key)
-        {
+        } else if (cur->next_nodes[i]->key < key) {
           cur = cur->next_nodes[i];
-        }
-        else
-        {
+        } else {
           updates[i] = cur;
           res = cur->next_nodes[i];
         }
       }
     }
-    if (res == NULL)
-    {
+    if (res == NULL) {
       return -1;
     }
-    cstl_skiplist_node *tmp = NULL;
-    for (size_t i = 0; i < res->level; i++)
-    {
-      if (updates[i] != NULL)
-      {
+    struct cstl_skiplist_node *tmp = NULL;
+    for (size_t i = 0; i < res->level; i++) {
+      if (updates[i] != NULL) {
         tmp = updates[i]->next_nodes[i];
         updates[i]->next_nodes[i] = tmp->next_nodes[i];
       }
@@ -161,26 +132,20 @@ int cstl_skiplist_pop(cstl_skiplist *sl, int64_t key)
   }
   return -1;
 }
-cstl_object *cstl_skiplist_find(cstl_skiplist *sl, int64_t key)
-{
-  cstl_object *obj = NULL;
+struct cstl_object *cstl_skiplist_find(struct cstl_skiplist *sl, int64_t key) {
+  struct cstl_object *obj = NULL;
 
-  if (sl != NULL)
-  {
-    cstl_skiplist_node *node = sl->head;
+  if (sl != NULL) {
+    struct cstl_skiplist_node *node = sl->head;
 
-    for (size_t i = sl->max_level - 1; i >= 0; i--)
-    {
-      if (node->next_nodes[i] != NULL && node->next_nodes[i]->key > key)
-      {
+    for (size_t i = sl->max_level - 1; i >= 0; i--) {
+      if (node->next_nodes[i] != NULL && node->next_nodes[i]->key > key) {
         continue;
       }
-      while (node->next_nodes[i] != NULL && node->next_nodes[i]->key < key)
-      {
+      while (node->next_nodes[i] != NULL && node->next_nodes[i]->key < key) {
         node = node->next_nodes[i];
       }
-      if (node->next_nodes[i]->key == key)
-      {
+      if (node->next_nodes[i]->key == key) {
         obj = node->next_nodes[i]->data;
         break;
       }
@@ -188,17 +153,13 @@ cstl_object *cstl_skiplist_find(cstl_skiplist *sl, int64_t key)
   }
   return obj;
 }
-void cstl_skip_list_deinit(cstl_skiplist *sl)
-{
-  if (sl != NULL)
-  {
-    cstl_skiplist_node *temp = sl->head;
-    for (size_t i = sl->max_level - 1; i >= 0; i--)
-    {
-      cstl_skiplist_node *cur = temp->next_nodes[i];
-      while (cur != NULL)
-      {
-        cstl_skiplist_node *v = cur->next_nodes[i];
+void cstl_skip_list_deinit(struct cstl_skiplist *sl) {
+  if (sl != NULL) {
+    struct cstl_skiplist_node *temp = sl->head;
+    for (size_t i = sl->max_level - 1; i >= 0; i--) {
+      struct cstl_skiplist_node *cur = temp->next_nodes[i];
+      while (cur != NULL) {
+        struct cstl_skiplist_node *v = cur->next_nodes[i];
         cstl_skiplist_node_free(sl, cur);
         cur = v;
       }
@@ -208,11 +169,9 @@ void cstl_skip_list_deinit(cstl_skiplist *sl)
     sl->head = NULL;
   }
 }
-void cstl_skip_list_free(cstl_skiplist *sl)
-{
+void cstl_skip_list_free(struct cstl_skiplist *sl) {
   cstl_skip_list_deinit(sl);
-  if (sl != NULL)
-  {
+  if (sl != NULL) {
     free(sl);
     sl = NULL;
   }
