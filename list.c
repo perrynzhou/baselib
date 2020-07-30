@@ -9,11 +9,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-struct cstl_list_node {
+typedef struct cstl_list_node_t {
   cstl_object *data;
-  struct cstl_list_node *next;
-  struct cstl_list_node *prev;
-};
+  cstl_list_node *next;
+  cstl_list_node *prev;
+}cstl_list_node;
 
 static cstl_list_node *cstl_list_node_alloc(cstl_object *obj) {
   cstl_list_node *node = NULL;

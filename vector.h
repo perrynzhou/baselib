@@ -9,18 +9,19 @@
 #define _VECTOR_H
 #include "object.h"
 #include <stdio.h>
-struct cstl_vector {
+typedef struct cstl_vector_t
+{
   size_t size;
   size_t max;
-  struct cstl_object **data;
-  struct cstl_object_func *funcs;
-};
-struct cstl_vector *cstl_vector_alloc(size_t max,struct  cstl_object_func *funcs);
-int cstl_vector_init(struct cstl_vector *v,size_t max,struct cstl_object_func *funcs);
-int cstl_vector_push(struct cstl_vector *v,struct cstl_object *obj);
-struct cstl_obejct *cstl_vector_pop(struct cstl_vector *v);
-struct cstl_obejct * cstl_vector_insert(struct cstl_vector *v,size_t index,struct cstl_object *obj);
-struct cstl_obejct * cstl_vector_delete(struct cstl_vector *v,size_t index);
-void cstl_vector_deinit(struct cstl_vector *v);
-void cstl_vector_free(struct cstl_vector *v);
+  cstl_object **data;
+  cstl_object_func *funcs;
+} cstl_vector;
+cstl_vector *cstl_vector_alloc(size_t max,  cstl_object_func *funcs);
+int cstl_vector_init(cstl_vector *v, size_t max,  cstl_object_func *funcs);
+int cstl_vector_push(cstl_vector *v,  cstl_object *obj);
+cstl_object *cstl_vector_pop(cstl_vector *v);
+int cstl_vector_insert(cstl_vector *v, size_t index,  cstl_object *obj);
+cstl_object *cstl_vector_delete(cstl_vector *v, size_t index);
+void cstl_vector_deinit(cstl_vector *v);
+void cstl_vector_free(cstl_vector *v);
 #endif

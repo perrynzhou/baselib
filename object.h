@@ -20,10 +20,9 @@ typedef enum cstl_object_type
   CSTL_DOUBLE_OBJECT,
   CSTL_STRUCT_OBJECT
 } cstl_object_type;
-struct cstl_object
+typedef struct cstl_object_t
 {
-  union
-  {
+  union {
     int64_t i64;
     uint64_t u64;
     int32_t i32;
@@ -32,12 +31,12 @@ struct cstl_object
     void *ptr;
   } data;
   uint8_t type;
-};
+} cstl_object;
 typedef void (*cstl_object_release_data)(void *data);
-typedef void (*cstl_object_release)(struct cstl_object *obj,
+typedef void (*cstl_object_release)(cstl_object *obj,
                                     cstl_object_release_data cb);
-typedef void (*cstl_object_process)(struct cstl_object *obj);
-struct cstl_object_func
+typedef void (*cstl_object_process)(cstl_object *obj);
+typedef struct cstl_object_func_t
 {
   // how to release data in cstl_object
   cstl_object_release_data data_free_func;
@@ -45,19 +44,19 @@ struct cstl_object_func
   cstl_object_release object_free_func;
   // method for process cstl_object
   cstl_object_process object_process_func;
-};
+} cstl_object_func;
 
-struct cstl_object_func *
+cstl_object_func *
 cstl_object_func_alloc(cstl_object_release_data data_free_func,
                        cstl_object_release object_free_func,
                        cstl_object_process object_process_func);
-void cstl_object_func_free(struct cstl_object_func *func);
-struct cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type);
-int cstl_objeect_init(struct cstl_object *obj, void *data,
+void cstl_object_func_free(cstl_object_func *func);
+cstl_object *cstl_object_alloc(void *data, cstl_object_type obj_type);
+int cstl_objeect_init(cstl_object *obj, void *data,
                       cstl_object_type obj_type);
-void *cstl_object_data(struct cstl_object *obj);
-void cstl_object_deinit(struct cstl_object *obj, cstl_object_release_data cb);
-void cstl_object_free(struct cstl_object *obj, cstl_object_release_data cb);
+void *cstl_object_data(cstl_object *obj);
+void cstl_object_deinit(cstl_object *obj, cstl_object_release_data cb);
+void cstl_object_free(cstl_object *obj, cstl_object_release_data cb);
 // true is nil
-bool cstl_object_is_nil(struct cstl_object *obj);
+bool cstl_object_is_nil(cstl_object *obj);
 #endif

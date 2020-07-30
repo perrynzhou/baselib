@@ -10,7 +10,7 @@
 #include "object.h"
 #include <pthread.h>
 typedef struct cstl_list_node  cstl_list_node;
-typedef struct cstl_list {
+typedef struct cstl_list_t {
   cstl_list_node dummy;
   size_t size;
   cstl_object_func *funcs;

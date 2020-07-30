@@ -12,10 +12,10 @@
 #include <string.h>
 #define MAX_INT64_T_VALUE 9223372036854775807
 
-size_t cstl_string_len(struct cstl_string *s) { return s->len; }
-char *cstl_string_data(struct cstl_string *s) { return s->data; }
+size_t cstl_string_len(cstl_string *s) { return s->len; }
+char *cstl_string_data(cstl_string *s) { return s->data; }
 
-int cstl_string_init(struct cstl_string *s, const char *str) {
+int cstl_string_init(cstl_string *s, const char *str) {
   if (s != NULL && str != NULL) {
     size_t len = strlen(str);
     s->len = len;
@@ -24,7 +24,7 @@ int cstl_string_init(struct cstl_string *s, const char *str) {
   }
   return -1;
 }
-int cstl_string_deinit(struct cstl_string *s) {
+int cstl_string_deinit(cstl_string *s) {
   if (s != NULL && s->len > 0) {
     free(s->data);
     s->len = 0;
@@ -32,10 +32,10 @@ int cstl_string_deinit(struct cstl_string *s) {
   }
   return -1;
 }
-struct cstl_string *cstl_string_alloc(const char *str) {
+cstl_string *cstl_string_alloc(const char *str) {
  struct  cstl_string *s = NULL;
   if (str != NULL) {
-    s = (struct cstl_string *)calloc(1, sizeof(struct cstl_string));
+    s = (cstl_string *)calloc(1, sizeof(cstl_string));
     if (cstl_string_init(s, str) != 0) {
       free(s);
       s = NULL;
@@ -43,7 +43,7 @@ struct cstl_string *cstl_string_alloc(const char *str) {
   }
   return s;
 }
-int cstl_string_strsep(struct cstl_string *s,char **save_results,size_t n,const char *delim)
+int cstl_string_strsep(cstl_string *s,char **save_results,size_t n,const char *delim)
 {
   if(s==NULL||save_results==NULL||n<=0||delim==NULL) {
     return -1;
@@ -61,7 +61,7 @@ int cstl_string_strsep(struct cstl_string *s,char **save_results,size_t n,const 
   }
   return i;
 }
-int cstl_string_snprintf(struct cstl_string *s,  const char *format, ...) {
+int cstl_string_snprintf(cstl_string *s,  const char *format, ...) {
 
   va_list arg_origin;
   va_list arg_save;
@@ -77,7 +77,7 @@ int cstl_string_snprintf(struct cstl_string *s,  const char *format, ...) {
   va_end(arg_save);
   return size;
 }
-void cstl_string_free(struct cstl_string *s) {
+void cstl_string_free(cstl_string *s) {
   if (s != NULL) {
     if (s->len > 0) {
       cstl_string_deinit(s);
@@ -85,7 +85,7 @@ void cstl_string_free(struct cstl_string *s) {
     free(s);
   }
 }
-int64_t cstl_string_hextoi(struct cstl_string *s) {
+int64_t cstl_string_hextoi(cstl_string *s) {
   unsigned char c, ch;
   int64_t value, cutoff;
   char *line = cstl_string_data(s);

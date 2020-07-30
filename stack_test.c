@@ -12,8 +12,8 @@
 void test_int(void) {
   size_t n = 100;
 
-  struct cstl_stack *s = cstl_stack_alloc(n, NULL);
-  struct cstl_object *objs[100] = {NULL};
+   cstl_stack *s = cstl_stack_alloc(n, NULL);
+   cstl_object *objs[100] = {NULL};
   for (int i = 0; i < n; i++) {
     int data = rand() % 30 + i;
     objs[i] = cstl_object_alloc(&data, CSTL_INT32_OBJECT);
@@ -22,7 +22,7 @@ void test_int(void) {
   }
   fprintf(stdout, "*********************\n");
   for (int i = 0; i < n; i++) {
-    struct cstl_object *obj = cstl_stack_pop(s);
+     cstl_object *obj = cstl_stack_pop(s);
     int *data = (int *)cstl_object_data(obj);
     fprintf(stdout, "obj:%p,pop data:%d\n", obj, *data);
   }
@@ -30,13 +30,13 @@ void test_int(void) {
 }
 void test_string(void) {
   size_t n = 10;
-  struct cstl_object_func fn = {
+   cstl_object_func fn = {
       .data_free_func = free,
       .object_free_func = cstl_object_free,
       .object_process_func = NULL,
   };
-  struct cstl_stack *s = cstl_stack_alloc(n, &fn);
-  struct cstl_object *objs[10] = {NULL};
+   cstl_stack *s = cstl_stack_alloc(n, &fn);
+   cstl_object *objs[10] = {NULL};
   for (int i = 0; i < n; i++) {
     char *data = (char *)calloc(64, sizeof(char));
     snprintf(data, 64, "hello,%d", rand() % 64 + i);
@@ -46,7 +46,7 @@ void test_string(void) {
   }
   fprintf(stdout, "*********************\n");
   for (int i = 0; i < n / 2; i++) {
-    struct cstl_object *obj = cstl_stack_pop(s);
+     cstl_object *obj = cstl_stack_pop(s);
     char *data = (char *)cstl_object_data(obj);
     fprintf(stdout, "obj:%p,pop data:%s\n", obj, data);
   }
