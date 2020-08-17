@@ -5,8 +5,8 @@
   > Created Time: 2020年04月22日 星期三 22时49分09秒
  ************************************************************************/
 
-#ifndef _CSTL_HASHFN_H
-#define _CSTL_HASHFN_H
+#ifndef _HASHFN_H
+#define _HASHFN_H
 #include <stdint.h>
 #include <stdio.h>
 uint32_t cstl_hash_crc16(const char* key, size_t key_length);

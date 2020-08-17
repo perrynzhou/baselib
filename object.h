@@ -5,8 +5,8 @@
   > Created Time: Monday, July 13, 2020 PM02:17:56 HKT
  ************************************************************************/
 
-#ifndef _CSTL_OBJECT_H
-#define _CSTL_OBJECT_H
+#ifndef _OBJECT_H
+#define _OBJECT_H
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>

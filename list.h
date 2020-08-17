@@ -5,8 +5,8 @@
   > Created Time: Monday, July 13, 2020 PM02:38:55 HKT
  ************************************************************************/
 
-#ifndef _CSTL_LIST_H
-#define _CSTL_LIST_H
+#ifndef _LIST_H
+#define _LIST_H
 #include "object.h"
 #include <pthread.h>
 typedef struct cstl_list_node  cstl_list_node;
