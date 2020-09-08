@@ -5,8 +5,8 @@
   > Created Time: Monday, September 07, 2020 AM10:26:10
  ************************************************************************/
 
-#ifndef _SLICE_H
-#define _SLICE_H
+#ifndef _slice_H
+#define _slice_H
 #include <stdarg.h>
 #include <stdio.h>
 typedef char *slice;

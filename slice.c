@@ -7,6 +7,9 @@
 #include "slice.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 #define SLICE_TYPE_5 0
 #define SLICE_TYPE_8 1
 #define SLICE_TYPE_16 2
@@ -170,7 +173,7 @@ static inline size_t slice_alloc(const slice s)
   return 0;
 }
 
-static inline size_t slice_avail(const slice s)
+static inline size_t slice_string_avail(const slice s)
 {
   unsigned char flags = s[-1];
   switch (flags & SLICE_TYPE_MASK)
@@ -212,7 +215,9 @@ static slice slice_alloc_mem(size_t initlen)
   slice s;
   char type = slice_req_type(initlen);
   if (type == SLICE_TYPE_5 && initlen == 0)
+  {
     type = SLICE_TYPE_8;
+  }
   int hdrlen = slice_hdr_size(type);
   unsigned char *fp;
 
@@ -270,7 +275,7 @@ static slice slice_alloc_mem(size_t initlen)
 static slice slice_make_room_for(slice s, size_t addlen)
 {
   void *sh, *newsh;
-  size_t avail = slice_avail(s);
+  size_t avail = slice_string_avail(s);
   size_t len, newlen;
   char type, oldtype = s[-1] & SLICE_TYPE_MASK;
   int hdrlen;
@@ -337,7 +342,7 @@ slice slice_copy(slice s, const char *str)
   size_t len = strlen(str);
   if (slice_alloc(s) < len)
   {
-    s = slice_make_room_for(s, len - slicelen(s));
+    s = slice_make_room_for(s, len);
     if (s == NULL)
     {
       return NULL;
@@ -408,7 +413,7 @@ slice slice_trim(slice s, const char *cset)
   size_t len;
 
   sp = start = s;
-  ep = end = s + sds_len(s) - 1;
+  ep = end = s + slice_len(s) - 1;
   while (sp <= end && strchr(cset, *sp))
   {
     sp++;
@@ -423,7 +428,7 @@ slice slice_trim(slice s, const char *cset)
     memmove(s, sp, len);
   }
   s[len] = '\0';
-  sds_set_len(s, len);
+  slice_set_len(s, len);
   return s;
 }
 void slice_toupper(slice s)
@@ -457,7 +462,7 @@ int slice_cmp(const slice s1, const slice s2)
 {
   size_t l1, l2, minlen;
   int cmp;
-  l1 = slcie_len(s1);
+  l1 = slice_len(s1);
   l2 = slice_len(s2);
   minlen = (l1 < l2) ? l1 : l2;
   cmp = memcmp(s1, s2, minlen);
