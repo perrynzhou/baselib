@@ -58,12 +58,12 @@ unsigned char PADDING[] =
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
-static void cstl_md5_update(md5_ctx *context, unsigned char *input, unsigned int inputlen);
-static void cstl_md5_final(md5_ctx *context, unsigned char digest[16]);
-static void cstl_md5_encode(unsigned char *output,unsigned int *input,unsigned int len);
-static void cstl_md5_decode(unsigned int *output, unsigned char *input, unsigned int len);
-static void cstl_md5_transform(unsigned int state[4], unsigned char block[64]);
-void cstl_md5_init(md5_ctx *context)
+static void md5_update(md5_ctx *context, unsigned char *input, unsigned int inputlen);
+static void md5_final(md5_ctx *context, unsigned char digest[16]);
+static void md5_encode(unsigned char *output,unsigned int *input,unsigned int len);
+static void md5_decode(unsigned int *output, unsigned char *input, unsigned int len);
+static void md5_transform(unsigned int state[4], unsigned char block[64]);
+void md5_init(md5_ctx *context)
 {
 	context->count[0] = 0;
 	context->count[1] = 0;
@@ -73,7 +73,7 @@ void cstl_md5_init(md5_ctx *context)
 	context->state[3] = 0x10325476;
 }
 
-static void cstl_md5_update(md5_ctx *context, unsigned char *input, unsigned int inputlen)
+static void md5_update(md5_ctx *context, unsigned char *input, unsigned int inputlen)
 {
 	unsigned int i = 0;
 	unsigned int index = 0;
@@ -90,10 +90,10 @@ static void cstl_md5_update(md5_ctx *context, unsigned char *input, unsigned int
 	if(inputlen >= partlen)
 	{
 		memcpy(&context->buffer[index], input,partlen);
-		cstl_md5_transform(context->state, context->buffer);
+		md5_transform(context->state, context->buffer);
 
 		for(i = partlen; i+64 <= inputlen; i+=64)
-			cstl_md5_transform(context->state, &input[i]);
+			md5_transform(context->state, &input[i]);
 
 		index = 0;        
 	}  
@@ -104,20 +104,20 @@ static void cstl_md5_update(md5_ctx *context, unsigned char *input, unsigned int
 	memcpy(&context->buffer[index], &input[i], inputlen-i);
 }
 
-static void cstl_md5_final(md5_ctx *context, unsigned char digest[16])
+static void md5_final(md5_ctx *context, unsigned char digest[16])
 {
 	unsigned int index = 0,padlen = 0;
 	unsigned char bits[8];
 
 	index = (context->count[0] >> 3) & 0x3F;
 	padlen = (index < 56)?(56-index):(120-index);
-	cstl_md5_encode(bits, context->count, 8);
-	cstl_md5_update(context, PADDING, padlen);
-	cstl_md5_update(context, bits, 8);
-	cstl_md5_encode(digest, context->state, 16);
+	md5_encode(bits, context->count, 8);
+	md5_update(context, PADDING, padlen);
+	md5_update(context, bits, 8);
+	md5_encode(digest, context->state, 16);
 }
 
-static void cstl_md5_encode(unsigned char *output,unsigned int *input,unsigned int len)
+static void md5_encode(unsigned char *output,unsigned int *input,unsigned int len)
 {
 	unsigned int i = 0;
 	unsigned int j = 0;
@@ -133,7 +133,7 @@ static void cstl_md5_encode(unsigned char *output,unsigned int *input,unsigned i
 	}
 }
 
-static void cstl_md5_decode(unsigned int *output, unsigned char *input, unsigned int len)
+static void md5_decode(unsigned int *output, unsigned char *input, unsigned int len)
 {
 	unsigned int i = 0;
 	unsigned int j = 0;
@@ -149,7 +149,7 @@ static void cstl_md5_decode(unsigned int *output, unsigned char *input, unsigned
 	}
 }
 
-static void cstl_md5_transform(unsigned int state[4], unsigned char block[64])
+static void md5_transform(unsigned int state[4], unsigned char block[64])
 {
 	unsigned int a = state[0];
 	unsigned int b = state[1];
@@ -157,7 +157,7 @@ static void cstl_md5_transform(unsigned int state[4], unsigned char block[64])
 	unsigned int d = state[3];
 	unsigned int x[64];
 
-	cstl_md5_decode(x,block,64);
+	md5_decode(x,block,64);
 
 	FF(a, b, c, d, x[ 0], 7, 0xd76aa478); /* 1 */
 	FF(d, a, b, c, x[ 1], 12, 0xe8c7b756); /* 2 */
@@ -234,18 +234,18 @@ static void cstl_md5_transform(unsigned int state[4], unsigned char block[64])
 	state[2] += c;
 	state[3] += d;
 }
-int cstl_md5_string(unsigned char *dest_str, unsigned int dest_len, char *md5_str)
+int md5_string(unsigned char *dest_str, unsigned int dest_len, char *md5_str)
 {
 	int i;
 	unsigned char md5_value[MD5_SIZE];
 	md5_ctx md5;
 
 	// init md5
-	cstl_md5_init(&md5);
+	md5_init(&md5);
 
-	cstl_md5_update(&md5, dest_str, dest_len);
+	md5_update(&md5, dest_str, dest_len);
 
-	cstl_md5_final(&md5, md5_value);
+	md5_final(&md5, md5_value);
 
 	// convert md5 value to md5 string
 	for(i = 0; i < MD5_SIZE; i++)
@@ -256,7 +256,7 @@ int cstl_md5_string(unsigned char *dest_str, unsigned int dest_len, char *md5_st
 	return 0;
 }
 
-int cstl_md5_file(const char *file_path, char *md5_str)
+int md5_file(const char *file_path, char *md5_str)
 {
 	int i;
 	int fd;
@@ -273,7 +273,7 @@ int cstl_md5_file(const char *file_path, char *md5_str)
 	}
 
 	// init md5
-	cstl_md5_init(&md5);
+	md5_init(&md5);
 
 	while (1)
 	{
@@ -285,7 +285,7 @@ int cstl_md5_file(const char *file_path, char *md5_str)
 			return -1;
 		}
 
-		cstl_md5_update(&md5, data, ret);
+		md5_update(&md5, data, ret);
 
 		if (0 == ret || ret < MD5_READ_DATA_SIZE)
 		{
@@ -295,7 +295,7 @@ int cstl_md5_file(const char *file_path, char *md5_str)
 
 	close(fd);
 
-	cstl_md5_final(&md5, md5_value);
+	md5_final(&md5, md5_value);
 
 	// convert md5 value to md5 string
 	for(i = 0; i < MD5_SIZE; i++)
