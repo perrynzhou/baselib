@@ -13,7 +13,7 @@ typedef struct queue_node_t
   struct queue_node_t *next;
   char data[0];
 } queue_node;
-int queue_init(queue *q, size_t nelem, size_t size)
+int queue_init(queue *q, size_t size)
 {
   if (q != NULL)
   {
@@ -24,10 +24,10 @@ int queue_init(queue *q, size_t nelem, size_t size)
   }
   return -1;
 }
-queue *queue_alloc(size_t nelem, size_t size)
+queue *queue_create(size_t size)
 {
   struct queue *q = (queue *)calloc(1, sizeof(queue));
-  if (queue_init(q, nelem, size) != 0)
+  if (queue_init(q, size) != 0)
   {
     free(q);
     q = NULL;
