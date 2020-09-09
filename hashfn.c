@@ -584,7 +584,7 @@ static const uint16_t crc16tab[256] = {
     0x0ed1,
     0x1ef0,
 };
-uint32_t cstl_hash_crc16(const char *key, size_t key_length)
+uint32_t hash_crc16(const char *key, size_t key_length)
 {
     uint64_t x;
     uint32_t crc = 0;
@@ -596,7 +596,7 @@ uint32_t cstl_hash_crc16(const char *key, size_t key_length)
 
     return crc;
 }
-uint32_t cstl_hash_crc32(const char *key, size_t key_length)
+uint32_t hash_crc32(const char *key, size_t key_length)
 {
     uint64_t x;
     uint32_t crc = UINT32_MAX;
@@ -609,7 +609,7 @@ uint32_t cstl_hash_crc32(const char *key, size_t key_length)
     return ((~crc) >> 16) & 0x7fff;
 }
 
-uint32_t cstl_hash_crc32a(const char *key, size_t key_length)
+uint32_t hash_crc32a(const char *key, size_t key_length)
 {
     const uint8_t *p = (uint8_t *)key;
     uint32_t crc;
@@ -623,7 +623,7 @@ uint32_t cstl_hash_crc32a(const char *key, size_t key_length)
     return crc ^ ~0U;
 }
 
-uint32_t cstl_hash_fnv1_64(const char *key, size_t key_length)
+uint32_t hash_fnv1_64(const char *key, size_t key_length)
 {
     uint64_t hash = FNV_64_INIT;
     size_t x;
@@ -637,7 +637,7 @@ uint32_t cstl_hash_fnv1_64(const char *key, size_t key_length)
     return (uint32_t)hash;
 }
 
-uint32_t cstl_hash_fnv1a_64(const char *key, size_t key_length)
+uint32_t hash_fnv1a_64(const char *key, size_t key_length)
 {
     uint32_t hash = (uint32_t)FNV_64_INIT;
     size_t x;
@@ -652,7 +652,7 @@ uint32_t cstl_hash_fnv1a_64(const char *key, size_t key_length)
     return hash;
 }
 
-uint32_t cstl_hash_fnv1_32(const char *key, size_t key_length)
+uint32_t hash_fnv1_32(const char *key, size_t key_length)
 {
     uint32_t hash = FNV_32_INIT;
     size_t x;
@@ -667,7 +667,7 @@ uint32_t cstl_hash_fnv1_32(const char *key, size_t key_length)
     return hash;
 }
 
-uint32_t cstl_hash_fnv1a_32(const char *key, size_t key_length)
+uint32_t hash_fnv1a_32(const char *key, size_t key_length)
 {
     uint32_t hash = FNV_32_INIT;
     size_t x;
@@ -682,7 +682,7 @@ uint32_t cstl_hash_fnv1a_32(const char *key, size_t key_length)
     return hash;
 }
 
-uint32_t cstl_hash_hsieh(const char *key, size_t key_length)
+uint32_t hash_hsieh(const char *key, size_t key_length)
 {
     uint32_t hash = 0, tmp;
     int rem;
@@ -737,7 +737,7 @@ uint32_t cstl_hash_hsieh(const char *key, size_t key_length)
 
     return hash;
 }
-uint32_t cstl_hash_jenkins(const char *key, size_t length)
+uint32_t hash_jenkins(const char *key, size_t length)
 {
     uint32_t a, b, c; /* internal state */
     union {
@@ -948,7 +948,7 @@ uint32_t cstl_hash_jenkins(const char *key, size_t length)
     return c;
 }
 
-uint32_t cstl_hash_murmur(const char *key, size_t length)
+uint32_t hash_murmur(const char *key, size_t length)
 {
     const unsigned int m = 0x5bd1e995;
     const uint32_t seed = (0xdeadbeef * (uint32_t)length);
@@ -993,7 +993,7 @@ uint32_t cstl_hash_murmur(const char *key, size_t length)
 
     return h;
 }
-uint32_t cstl_hash_one_at_a_time(const char *key, size_t key_length)
+uint32_t hash_one_at_a_time(const char *key, size_t key_length)
 {
     const char *ptr = key;
     uint32_t value = 0;
@@ -1044,7 +1044,7 @@ static int dm_round(int rounds, uint32_t *array, uint32_t *h0, uint32_t *h1)
 
   return 0;
 }
-uint64_t cstl_hash_gfs(const char *msg, int len)
+uint64_t hash_gfs(const char *msg, int len)
 {
   uint32_t h0 = 0x9464a485;
   uint32_t h1 = 0x542e1a94;
@@ -1103,7 +1103,7 @@ uint64_t cstl_hash_gfs(const char *msg, int len)
 
   return (uint64_t)(h0 ^ h1);
 }
-uint32_t cstl_hash_jump_consistent(uint64_t key, int32_t num_buckets)
+uint32_t hash_jump_consistent(uint64_t key, int32_t num_buckets)
 {
 
   int64_t b = -1, j = 0;
@@ -1117,7 +1117,7 @@ uint32_t cstl_hash_jump_consistent(uint64_t key, int32_t num_buckets)
   value = (b < 0) ? (~b + 1) : b;
   return value;
 }
-#ifdef cstl_hash_TEST
+#ifdef hash_TEST
 #include "md5.h"
 int main(int argc, const char *argv[])
 {
@@ -1135,7 +1135,7 @@ int main(int argc, const char *argv[])
     fprintf(stdout,"string:%s,md5sum:%s\n",buf,&md5_str);
 
     uint32_t hash = gfs_hashfn((char *)&md5_str, strlen((char *)&md5_str));
-    uint32_t h = cstl_hash_jump_consistent(hash, n);
+    uint32_t h = hash_jump_consistent(hash, n);
     fprintf(stdout, "hash:%ld,sum[%d] =%d\n", h, h, sum[h]);
     sum[h] = sum[h] + 1;
   }

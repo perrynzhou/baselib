@@ -16,7 +16,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
-int cstl_daemon(const char *name, daemon_func func, void *arg1, void *arg2, void *arg3)
+int daemon(const char *name, daemon_func func, void *arg1, void *arg2, void *arg3)
 {
   int pid;
   int i = 0;
@@ -94,7 +94,7 @@ void *test(void *arg1, void *arg2, void *arg3)
 }
 int main(void)
 {
-  cstl_daemon("test_damon",test,"/var/log/test_damon.log",NULL,NULL);
+  daemon("test_damon",test,"/var/log/test_damon.log",NULL,NULL);
   return 0;
 }
 #endif
