@@ -16,7 +16,7 @@ enum log_level
     LOG_FATAL_LEVEL,
     LOG_WARN_LEVEL
 };
-typedef struct log {
+typedef struct log_t {
     char *name;  
     int  fd;
     char *buffer;

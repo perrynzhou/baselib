@@ -88,7 +88,7 @@ void *vector_get(vector *vec, uint32_t idx)
   }
   return data;
 }
-void vector_swap(vector *a, struct vector *b)
+void vector_swap(vector *a, vector *b)
 {
   vector tmp;
   tmp = *a;
