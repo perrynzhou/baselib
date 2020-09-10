@@ -9,72 +9,50 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-typedef struct list_node_t
-{
-  list_node *next;
-  list_node *prev;
-  char data[0];
-} list_node;
-
+#include <string.h>
 inline static list_node *list_node_alloc(size_t size)
 {
-  list_node *node = calloc(1, sizeof(list_node) + sizeof(char) * size);
-  node->next = node->prev = NULL;
-  return node;
-}
-static int list_node_free(list *list, list_node *node)
-{
+  list_node *node = calloc(1, size + sizeof(list_node));
   if (node != NULL)
   {
-    node->prev = node->next = NULL;
-    if (list->funcs != NULL)
-    {
-      if (list->funcs->data_free_func != NULL)
-      {
-        list->funcs->data_free_func(cstl_object_data(node->data));
-      }
-      if (list->funcs->object_free_func != NULL)
-      {
-        list->funcs->object_free_func(node->data);
-      }
-    }
+    node->next = node->prev = NULL;
+  }
+  return node;
+}
+inline static int list_node_free(void *data)
+{
+  if (data != NULL)
+  {
+    list_node *node = (list_node *)(data - sizeof(list_node));
     free(node);
+    return 0;
   }
+  return -1;
 }
-inline static bool list_empty(list *list)
+size_t list_len(list *lt)
 {
-  if (list->size == 0)
+  if (lt != NULL)
   {
-    return false;
+    return lt->nelem;
   }
-  return true;
-}
-inline static bool list_nil(list *list)
-{
-  if (list == NULL)
-  {
-    return false;
-  }
-  return true;
+  return 0;
 }
 list *list_create(size_t size)
 {
 
-  list *list = calloc(1, sizeof(list));
-  if (list_init(list, size) != 0)
+  list *lt = calloc(1, sizeof(list));
+  if (list_init(lt, size) != 0)
   {
     return NULL;
   }
-  return list;
+  return lt;
 }
 int list_init(list *lt, size_t size)
 {
   if (lt != NULL)
   {
-    // list->dummy.prev  pointer list head
-    // list->dummy.next pointer list tail
-    lt->head= lt->tail = NULL;
-    lt->size = 0;
+    lt->head = lt->tail = NULL;
+    lt->size = size;
     lt->nelem = 0;
     return 0;
   }
@@ -83,206 +61,250 @@ int list_init(list *lt, size_t size)
 inline static list_node *list_search_node(list *lt, size_t index)
 {
   list_node *res = NULL;
-  if (lt != NULL && lt->nelem >= index)
+  if (lt->nelem == 0)
   {
-    size_t i = 0;
-    list_node *tmp = NULL;
-    list_node *res = NULL;
-    for (tmp = lt->head; tmp != NULL; tmp = tmp->next)
+    return NULL;
+  }
+  if (index > 0 && index == (lt->nelem - 1))
+  {
+    return lt->tail;
+  }
+  size_t i = 0;
+  list_node *tmp = lt->head;
+  while (tmp != NULL)
+  {
+    if (index == i)
     {
-      if (i == index)
-      {
-        res = tmp;
-        break;
-      }
-      i++;
+      res = tmp;
+      break;
     }
+    i++;
+    tmp = tmp->next;
   }
   return res;
 }
 void *list_remove(list *lt, size_t index)
 {
   void *data = NULL;
-  list_node *node = list_node_alloc(lt->size);
-  if (node != NULL)
+  list_node *tmp = list_search_node(lt, index);
+  if (tmp != NULL)
   {
-    if (node == lt->dummy.next)
+    data = &tmp->data;
+    if (tmp->prev != NULL)
     {
-      lt->dummy.next = node->prev;
-
-    } else if (node==lt->dummy.prev){
-        lt->dummy.prev = 
-    }else {
-
+      tmp->prev->next = tmp->next;
     }
+    if (tmp->next != NULL)
+    {
+      tmp->next->prev = tmp->prev;
+    }
+    if (tmp == lt->head)
+    {
+      lt->head = tmp->next;
+    }
+    if (tmp == lt->tail)
+    {
+      lt->tail = tmp->prev;
+    }
+    __sync_fetch_and_sub(&lt->nelem, 1);
   }
+  return data;
 }
 void *list_insert(list *lt, size_t index)
 {
 
   void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
+  {
+    return data;
+  }
+  data = &node->data;
   list_node *tmp = list_search_node(lt, index);
-  if (tmp != NULL)
+  if (tmp == NULL)
   {
-    list_node *node = list_node_alloc(lt->size);
-    if (node == NULL)
-    {
-      return data;
-    }
-    data = (void *)&node->data;
-    if (lt->head == tmp)
-    {
-      node->prev = lt->head->prev;
-      node->next = lt->head;
-      lt->head->prev = node;
-      lt->head = node;
-
-
-    }else if (lt->tail == tmp)
-    {
-      node->next = lt->tail->next;
-      node->prev = lt->tail;
-      lt->tail->next = node;
-      lt->tail = node;
-    }else {
-    node->next = tmp;
+    lt->head = lt->tail = node;
+    __sync_fetch_and_add(&lt->nelem, 1);
+    return data;
+  }
+  if (tmp->prev != NULL)
+  {
     node->prev = tmp->prev;
-    tmp->prev = node;
-    }
-    lt->nelem++;
+    tmp->prev->next = node;
   }
+  node->next = tmp;
+  tmp->prev = node;
+  fprintf(stdout, "count:%d\n", lt->nelem);
+  return data;
 }
-return data;
-}
-int list_push_back(list *list, cstl_object *obj)
+
+void *list_push_back(list *lt)
 {
-  return list_insert(list, -1, obj);
-}
-int list_push_front(list *list, cstl_object *obj)
-{
-  return list_insert(list, 0, obj);
-}
-list_node *list_remove(list *list, int pos)
-{
-  if (!list_empty(list) || !list_nil(list))
+
+  void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
   {
-    return NULL;
+    return data;
   }
-  list_node *node = NULL;
-  if (pos >= 0)
+  data = (void *)&node->data;
+  if (lt->nelem == 0)
   {
-    node = list->dummy.prev;
-    if (node == list->dummy.next)
-    {
-      list->dummy.prev = list->dummy.next = NULL;
-    }
-    else
-    {
-      list->dummy.prev = node->next;
-    }
+    lt->head = lt->tail = node;
   }
   else
   {
-    node = list->dummy.next;
-    if (node == list->dummy.prev)
-    {
-      list->dummy.prev = list->dummy.next = NULL;
-    }
-    else
-    {
-      list->dummy.next = node->prev;
-    }
+    node->next = lt->tail->next;
+    node->prev = lt->tail;
+    lt->tail->next = node;
+    lt->tail = node;
   }
-  list->size--;
-  return node;
+  __sync_fetch_and_add(&lt->nelem, 1);
+  return data;
 }
-cstl_object *list_pop_back(list *list)
+void *list_push_front(list *lt)
 {
-  return list_remove(list, -1);
+  void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
+  {
+    return data;
+  }
+  data = (void *)&node->data;
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = node;
+  }
+  else
+  {
+    node->prev = lt->head->prev;
+    node->next = lt->head;
+    lt->head->prev = node;
+    lt->head = node;
+  }
+  __sync_fetch_and_add(&lt->nelem, 1);
+  return data;
 }
-cstl_object *list_pop_front(list *list)
+void *list_pop_back(list *lt)
 {
-  return list_remove(list, 0);
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->tail;
+  if (node->prev != NULL)
+  {
+    lt->tail = node->prev;
+    lt->tail->next = NULL;
+  }
+  node->prev = node->next = NULL;
+  __sync_fetch_and_sub(&lt->nelem, 1);
+  return (void *)&node->data;
 }
+void *list_pop_front(list *lt)
+{
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->head;
+  if (node->next != NULL)
+  {
+    lt->head = node->next;
+    lt->head->prev = NULL;
+  }
+  node->prev = node->next = NULL;
+  __sync_fetch_and_sub(&lt->nelem, 1);
 
-int list_reverse(list *list)
+  return (void *)&node->data;
+}
+int list_release_elem(void *data)
 {
-  if (!list_empty(list) || !list_nil(list))
+  return list_node_free(data);
+}
+int list_reverse(list *lt)
+{
+  if (lt != NULL && lt->nelem > 0)
   {
-    return -1;
-  }
-  list_node *last = list->dummy.next;
-  list->dummy.prev = list->dummy.next = NULL;
-  for (; last != NULL; last = last->prev)
-  {
-    if (list->dummy.prev == NULL)
+    list_node *tmp = lt->tail;
+    list_node *new_head = tmp;
+    list_node *new_tail = tmp;
+    tmp = tmp->prev;
+    new_head->prev = NULL;
+    new_head->next = NULL;
+    while (tmp != NULL)
     {
-      list->dummy.prev = list->dummy.next = last;
+      list_node *prev = tmp->prev;
+      tmp->next = tmp->prev = NULL;
+      new_tail->next = tmp;
+      tmp->prev = new_tail;
+      new_tail = tmp;
+      tmp = prev;
     }
-    else
-    {
-      list_node *tail = list->dummy.next;
-      tail->next = last;
-      last->prev = tail;
-      tail = last;
-      list->dummy.next = last;
-    }
+    lt->head = new_head;
+    lt->tail = new_tail;
   }
   return 0;
 }
-int list_duplicate(list *dst_list, list *src_list)
+void list_dump(list *lt, list_dump_cb cb)
 {
-  if (!list_empty(src_list) || !list_nil(src_list) ||
-      !list_nil(dst_list))
+  if (lt != NULL && lt->nelem > 0 && cb != NULL)
   {
-    return -1;
-  }
-  list_node *first = src_list->dummy.prev;
-  for (; first != NULL; first = first->next)
-  {
-    if (dst_list->dummy.prev == NULL)
+    list_node *tmp = lt->head;
+    while (tmp != NULL)
     {
-      dst_list->dummy.prev = dst_list->dummy.next = first;
+      void *data = (void *)&tmp->data;
+      cb(data);
+      tmp = tmp->next;
+    }
+  }
+}
+list *list_dup(list *lt)
+{
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->head;
+  list *new_lt = list_create(lt->size);
+  for (size_t i = 0; i < lt->nelem; i++)
+  {
+    list_node *new_node = list_node_alloc(new_lt->size);
+    memcpy((void *)&new_node->data, &node->data, new_lt->size);
+    if (new_lt->nelem == 0)
+    {
+      new_lt->head = new_lt->tail = new_node;
     }
     else
     {
-      list_node *tail = dst_list->dummy.next;
-      tail->next = first;
-      first->prev = tail;
-      tail = first;
-      dst_list->dummy.next = first;
+      new_node->prev = new_lt->tail;
+      new_lt->tail->next = new_node;
+      new_lt->tail = new_node;
     }
+    __sync_fetch_and_sub(&new_lt->nelem, 1);
+    node = node->next;
   }
-  return 0;
+  return new_lt;
 }
-int list_traverse(list *list)
+void list_deinit(list *lt)
 {
-  list_node *node = list->dummy.prev;
-  for (; node != NULL; node = node->next)
+  if (lt != NULL)
   {
-    if (list->funcs != NULL && list->funcs->object_process_func != NULL)
+    list_node *node = lt->head;
+    for (node = lt->head; node != NULL; node = node->next)
     {
-      list->funcs->object_process_func(node->data);
+      free(node);
+      __sync_fetch_and_sub(&lt->nelem, 1);
     }
+    lt->nelem = 0;
   }
 }
-void list_deinit(list *list)
+void list_free(list *lt)
 {
-  if (list != NULL)
+  list_deinit(lt);
+  if (lt != NULL)
   {
-    list_node *node = list->dummy.prev;
-    for (; node != NULL; node = node->next)
-    {
-      list_node_free(list, node);
-    }
-  }
-}
-void list_free(list *list)
-{
-  list_deinit(list);
-  if (list != NULL)
-  {
-    free(list);
-    list = NULL;
+    free(lt);
+    lt = NULL;
   }
 }
