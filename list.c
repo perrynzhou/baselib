@@ -134,7 +134,12 @@ void *list_insert(list *lt, size_t index)
   }
   node->next = tmp;
   tmp->prev = node;
-  fprintf(stdout, "count:%d\n", lt->nelem);
+  if(tmp==lt->head) {
+    lt->head = node;
+  }
+  if(tmp==lt->tail) {
+    
+  }
   return data;
 }
 
