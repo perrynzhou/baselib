@@ -173,7 +173,7 @@ static inline size_t slice_alloc(const slice s)
   return 0;
 }
 
-static inline size_t slice_string_avail(const slice s)
+static inline size_t slice_avail(const slice s)
 {
   unsigned char flags = s[-1];
   switch (flags & SLICE_TYPE_MASK)
@@ -275,7 +275,7 @@ static slice slice_alloc_mem(size_t initlen)
 static slice slice_make_room_for(slice s, size_t addlen)
 {
   void *sh, *newsh;
-  size_t avail = slice_string_avail(s);
+  size_t avail = slice_avail(s);
   size_t len, newlen;
   char type, oldtype = s[-1] & SLICE_TYPE_MASK;
   int hdrlen;

@@ -9,190 +9,302 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-typedef struct cstl_list_node_t {
-  cstl_object *data;
-  cstl_list_node *next;
-  cstl_list_node *prev;
-}cstl_list_node;
-
-static cstl_list_node *cstl_list_node_alloc(cstl_object *obj) {
-  cstl_list_node *node = NULL;
-  if (obj != NULL) {
-    node = calloc(1, sizeof(cstl_list_node));
-    assert(node != NULL);
+#include <string.h>
+inline static list_node *list_node_alloc(size_t size)
+{
+  list_node *node = calloc(1, size + sizeof(list_node));
+  if (node != NULL)
+  {
     node->next = node->prev = NULL;
-    node->data = obj;
   }
   return node;
 }
-static int cstl_list_node_free(cstl_list *list, cstl_list_node *node) {
-  if (node != NULL) {
-    node->prev = node->next = NULL;
-    if (list->funcs != NULL) {
-      if (list->funcs->data_free_func != NULL) {
-        list->funcs->data_free_func(cstl_object_data(node->data));
-      }
-      if (list->funcs->object_free_func != NULL) {
-        list->funcs->object_free_func(node->data);
-      }
-    }
+inline static int list_node_free(void *data)
+{
+  if (data != NULL)
+  {
+    list_node *node = (list_node *)(data - sizeof(list_node));
     free(node);
-  }
-}
-inline static bool cstl_list_empty(cstl_list *list) {
-  if (list->size == 0) {
-    return false;
-  }
-  return true;
-}
-inline static bool cstl_list_nil(cstl_list *list) {
-  if (list == NULL) {
-    return false;
-  }
-  return true;
-}
-cstl_list *cstl_list_alloc(cstl_object_func *funcs) {
-
-  cstl_list *list = calloc(1, sizeof(cstl_list));
-  if (cstl_list_init(list, funcs) != 0) {
-    return NULL;
-  }
-  return list;
-}
-int cstl_list_init(cstl_list *list, cstl_object_func *funcs) {
-  if (list != NULL) {
-    // list->dummy.prev  pointer list head
-    // list->dummy.next pointer list tail
-    list->dummy.next = list->dummy.prev = NULL;
-    list->size = 0;
-    if (funcs != NULL) {
-      list->funcs =
-          cstl_object_func_alloc(funcs->data_free_func, funcs->object_free_func,
-                                 funcs->object_free_func);
-    }
     return 0;
   }
   return -1;
 }
-int cstl_list_insert(cstl_list *list, int pos, cstl_object *obj) {
-  if (!cstl_list_nil(list) || !cstl_object_nil(obj)) {
-    return -1;
+size_t list_len(list *lt)
+{
+  if (lt != NULL)
+  {
+    return lt->nelem;
   }
-
-  cstl_list_node *node = list_node_alloc(obj);
-  assert(node != NULL);
-
-  if (list->dummy.next == NULL) {
-    list->dummy.next = list->dummy.prev = node;
-  } else {
-    if (pos >= 0) {
-      cstl_list_node *head = list->dummy.prev;
-      node->next = head;
-      head->prev = node;
-    } else {
-      cstl_list_node *tail = list->dummy.next;
-      tail->next = node;
-      node->prev = tail;
-      list->dummy.next = node;
-    }
-  }
-  list->size++;
   return 0;
 }
-int cstl_list_push_back(cstl_list *list, cstl_object *obj) {
-  return cstl_list_insert(list, -1, obj);
-}
-int cstl_list_push_front(cstl_list *list, cstl_object *obj) {
-  return cstl_list_insert(list, 0, obj);
-}
-cstl_list_node *cstl_list_remove(cstl_list *list, int pos) {
-  if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
+list *list_create(size_t size)
+{
+
+  list *lt = calloc(1, sizeof(list));
+  if (list_init(lt, size) != 0)
+  {
     return NULL;
   }
-  cstl_list_node *node = NULL;
-  if (pos >= 0) {
-    node = list->dummy.prev;
-    if (node == list->dummy.next) {
-      list->dummy.prev = list->dummy.next = NULL;
-    } else {
-      list->dummy.prev = node->next;
-    }
-  } else {
-    node = list->dummy.next;
-    if (node == list->dummy.prev) {
-      list->dummy.prev = list->dummy.next = NULL;
-    } else {
-      list->dummy.next = node->prev;
-    }
+  return lt;
+}
+int list_init(list *lt, size_t size)
+{
+  if (lt != NULL)
+  {
+    lt->head = lt->tail = NULL;
+    lt->size = size;
+    lt->nelem = 0;
+    return 0;
   }
-  list->size--;
-  return node;
+  return -1;
 }
-cstl_object *cstl_list_pop_back(cstl_list *list) {
-  return cstl_list_remove(list, -1);
+inline static list_node *list_search_node(list *lt, size_t index)
+{
+  list_node *res = NULL;
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  if (index > 0 && index == (lt->nelem - 1))
+  {
+    return lt->tail;
+  }
+  size_t i = 0;
+  list_node *tmp = lt->head;
+  while (tmp != NULL)
+  {
+    if (index == i)
+    {
+      res = tmp;
+      break;
+    }
+    i++;
+    tmp = tmp->next;
+  }
+  return res;
 }
-cstl_object *cstl_list_pop_front(cstl_list *list) {
-  return cstl_list_remove(list, 0);
+void *list_remove(list *lt, size_t index)
+{
+  void *data = NULL;
+  list_node *tmp = list_search_node(lt, index);
+  if (tmp != NULL)
+  {
+    data = &tmp->data;
+    if (tmp->prev != NULL)
+    {
+      tmp->prev->next = tmp->next;
+    }
+    if (tmp->next != NULL)
+    {
+      tmp->next->prev = tmp->prev;
+    }
+    if (tmp == lt->head)
+    {
+      lt->head = tmp->next;
+    }
+    if (tmp == lt->tail)
+    {
+      lt->tail = tmp->prev;
+    }
+    __sync_fetch_and_sub(&lt->nelem, 1);
+  }
+  return data;
+}
+void *list_insert(list *lt, size_t index)
+{
+
+  void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
+  {
+    return data;
+  }
+  data = &node->data;
+  list_node *tmp = list_search_node(lt, index);
+  if (tmp == NULL)
+  {
+    lt->head = lt->tail = node;
+    __sync_fetch_and_add(&lt->nelem, 1);
+    return data;
+  }
+  if (tmp->prev != NULL)
+  {
+    node->prev = tmp->prev;
+    tmp->prev->next = node;
+  }
+  node->next = tmp;
+  tmp->prev = node;
+  fprintf(stdout, "count:%d\n", lt->nelem);
+  return data;
 }
 
-int cstl_list_reverse(cstl_list *list) {
-  if (!cstl_list_empty(list) || !cstl_list_nil(list)) {
-    return -1;
+void *list_push_back(list *lt)
+{
+
+  void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
+  {
+    return data;
   }
-  cstl_list_node *last = list->dummy.next;
-  list->dummy.prev = list->dummy.next = NULL;
-  for (; last != NULL; last = last->prev) {
-    if (list->dummy.prev == NULL) {
-      list->dummy.prev = list->dummy.next = last;
-    } else {
-      cstl_list_node *tail = list->dummy.next;
-      tail->next = last;
-      last->prev = tail;
-      tail = last;
-      list->dummy.next = last;
+  data = (void *)&node->data;
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = node;
+  }
+  else
+  {
+    node->next = lt->tail->next;
+    node->prev = lt->tail;
+    lt->tail->next = node;
+    lt->tail = node;
+  }
+  __sync_fetch_and_add(&lt->nelem, 1);
+  return data;
+}
+void *list_push_front(list *lt)
+{
+  void *data = NULL;
+  list_node *node = list_node_alloc(lt->size);
+  if (node == NULL)
+  {
+    return data;
+  }
+  data = (void *)&node->data;
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = node;
+  }
+  else
+  {
+    node->prev = lt->head->prev;
+    node->next = lt->head;
+    lt->head->prev = node;
+    lt->head = node;
+  }
+  __sync_fetch_and_add(&lt->nelem, 1);
+  return data;
+}
+void *list_pop_back(list *lt)
+{
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->tail;
+  if (node->prev != NULL)
+  {
+    lt->tail = node->prev;
+    lt->tail->next = NULL;
+  }
+  node->prev = node->next = NULL;
+  __sync_fetch_and_sub(&lt->nelem, 1);
+  return (void *)&node->data;
+}
+void *list_pop_front(list *lt)
+{
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->head;
+  if (node->next != NULL)
+  {
+    lt->head = node->next;
+    lt->head->prev = NULL;
+  }
+  node->prev = node->next = NULL;
+  __sync_fetch_and_sub(&lt->nelem, 1);
+
+  return (void *)&node->data;
+}
+int list_release_elem(void *data)
+{
+  return list_node_free(data);
+}
+int list_reverse(list *lt)
+{
+  if (lt != NULL && lt->nelem > 0)
+  {
+    list_node *tmp = lt->tail;
+    list_node *new_head = tmp;
+    list_node *new_tail = tmp;
+    tmp = tmp->prev;
+    new_head->prev = NULL;
+    new_head->next = NULL;
+    while (tmp != NULL)
+    {
+      list_node *prev = tmp->prev;
+      tmp->next = tmp->prev = NULL;
+      new_tail->next = tmp;
+      tmp->prev = new_tail;
+      new_tail = tmp;
+      tmp = prev;
     }
+    lt->head = new_head;
+    lt->tail = new_tail;
   }
   return 0;
 }
-int cstl_list_duplicate(cstl_list *dst_list, cstl_list *src_list) {
-  if (!cstl_list_empty(src_list) || !cstl_list_nil(src_list) ||
-      !cstl_list_nil(dst_list)) {
-    return -1;
-  }
-  cstl_list_node *first = src_list->dummy.prev;
-  for (; first != NULL; first = first->next) {
-    if (dst_list->dummy.prev == NULL) {
-      dst_list->dummy.prev = dst_list->dummy.next = first;
-    } else {
-      cstl_list_node *tail = dst_list->dummy.next;
-      tail->next = first;
-      first->prev = tail;
-      tail = first;
-      dst_list->dummy.next = first;
-    }
-  }
-  return 0;
-}
-int cstl_list_traverse(cstl_list *list) {
-  cstl_list_node *node = list->dummy.prev;
-  for (; node != NULL; node = node->next) {
-    if (list->funcs != NULL && list->funcs->object_process_func != NULL) {
-      list->funcs->object_process_func(node->data);
+void list_dump(list *lt, list_dump_cb cb)
+{
+  if (lt != NULL && lt->nelem > 0 && cb != NULL)
+  {
+    list_node *tmp = lt->head;
+    while (tmp != NULL)
+    {
+      void *data = (void *)&tmp->data;
+      cb(data);
+      tmp = tmp->next;
     }
   }
 }
-void cstl_list_deinit(cstl_list *list) {
-  if (list != NULL) {
-    cstl_list_node *node = list->dummy.prev;
-    for (; node != NULL; node = node->next) {
-      cstl_list_node_free(list, node);
+list *list_dup(list *lt)
+{
+  if (lt->nelem == 0)
+  {
+    return NULL;
+  }
+  list_node *node = lt->head;
+  list *new_lt = list_create(lt->size);
+  for (size_t i = 0; i < lt->nelem; i++)
+  {
+    list_node *new_node = list_node_alloc(new_lt->size);
+    memcpy((void *)&new_node->data, &node->data, new_lt->size);
+    if (new_lt->nelem == 0)
+    {
+      new_lt->head = new_lt->tail = new_node;
     }
+    else
+    {
+      new_node->prev = new_lt->tail;
+      new_lt->tail->next = new_node;
+      new_lt->tail = new_node;
+    }
+    __sync_fetch_and_sub(&new_lt->nelem, 1);
+    node = node->next;
+  }
+  return new_lt;
+}
+void list_deinit(list *lt)
+{
+  if (lt != NULL)
+  {
+    list_node *node = lt->head;
+    for (node = lt->head; node != NULL; node = node->next)
+    {
+      free(node);
+      __sync_fetch_and_sub(&lt->nelem, 1);
+    }
+    lt->nelem = 0;
   }
 }
-void cstl_list_free(cstl_list *list) {
-  cstl_list_deinit(list);
-  if (list != NULL) {
-    free(list);
-    list = NULL;
+void list_free(list *lt)
+{
+  list_deinit(lt);
+  if (lt != NULL)
+  {
+    free(lt);
+    lt = NULL;
   }
 }

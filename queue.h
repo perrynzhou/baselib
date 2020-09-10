@@ -17,8 +17,8 @@ typedef struct queue_t
   size_t size;
 } queue;
 
-queue *queue_alloc(size_t nelem,size_t size);
-int queue_init(queue *q, size_t nelem,size_t size);
+queue *queue_alloc(size_t size);
+int queue_init(queue *q, size_t size);
 size_t queue_len(queue *q);
 void *queue_push(queue *q);
 void  *queue_pop(queue *q);
