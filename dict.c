@@ -212,8 +212,9 @@ void *dict_get(dict *d, const char *key)
   }
   return data;
 }
-void dict_del(dict *d, const char *key)
+void *dict_del(dict *d, const char *key)
 {
+  void *data = NULL;
   dict_data_pair *prev = NULL;
   uint32_t hash, index;
   size_t key_len;
@@ -229,8 +230,9 @@ void dict_del(dict *d, const char *key)
       prev->next = dp->next;
     }
     dp->next = NULL;
-    free(dp);
+    data = (void *)&dp->data;
   }
+  return data;
 }
 void dict_data_release(void *data)
 {

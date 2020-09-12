@@ -21,7 +21,7 @@ int dict_init(dict *d, uint32_t max_count, dict_hash_fn hash_fn);
 dict *dict_create(uint32_t max_count, dict_hash_fn hash_fn);
 void *dict_add(dict *d, const char *key, size_t data_len);
 void *dict_get(dict *d, const char *key);
-void dict_del(dict *d, const char *key);
+void *dict_del(dict *d, const char *key);
 void dict_data_release(void *data);
 void dict_deinit(dict *d);
 void dict_destroy(dict *d);
