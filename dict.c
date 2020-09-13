@@ -18,7 +18,6 @@ typedef struct dict_data_pair_t
   struct dict_data_pair_t *next;
   char *key;
   uint32_t hash;
-  uint8_t type;
   char data[0];
 } dict_data_pair;
 inline static dict_data_pair *dict_data_pair_create(const char *key, uint32_t hash, size_t len)
@@ -28,17 +27,6 @@ inline static dict_data_pair *dict_data_pair_create(const char *key, uint32_t ha
   dp->hash = hash;
   dp->key = strdup(key);
   return dp;
-}
-inline static void dict_data_pair_destroy(void *data)
-{
-  dict_data_pair *dp = (void *)(data) - sizeof(dict_data_pair);
-  free(dp->key);
-  free(dp);
-}
-uint8_t dict_get_data_type(void *data)
-{
-  dict_data_pair *dp = (void *)(data) - sizeof(dict_data_pair);
-  return dp->type;
 }
 inline static uint32_t __pad(int len)
 {
@@ -177,14 +165,17 @@ static dict_data_pair *dict_fetch(dict *d, const char *key, size_t *key_len_ptr,
   *key_len_ptr = key_len;
   dict_data_pair *cur = NULL;
   dict_data_pair *data = NULL;
-  for (cur = (dict_data_pair *)d->members[index]; cur != NULL; cur = cur->next)
+  if (d->member_count[index] > 0)
   {
-    if (hash == cur->hash && strncmp(cur->key, key, key_len) == 0)
+    for (cur = (dict_data_pair *)d->members[index]; cur != NULL; cur = cur->next)
     {
-      data = cur;
-      break;
+      if (hash == cur->hash && strncmp(cur->key, key, key_len) == 0)
+      {
+        data = cur;
+        break;
+      }
+      *prev = cur;
     }
-    *prev = cur;
   }
   return data;
 }
@@ -225,9 +216,8 @@ void *dict_get(dict *d, char *key)
   }
   return data;
 }
-void *dict_del(dict *d, char *key)
+int dict_del(dict *d, char *key, dict_data_free_fn fn)
 {
-  void *data = NULL;
   dict_data_pair *prev = NULL;
   uint32_t hash, index;
   size_t key_len;
@@ -243,27 +233,54 @@ void *dict_del(dict *d, char *key)
       prev->next = dp->next;
     }
     dp->next = NULL;
-    data = (void *)&dp->data;
+    free(dp->key);
+    if (fn != NULL)
+    {
+      fn(dp->data);
+    }
+    free(dp);
     __sync_fetch_and_sub(&d->member_count[index], 1);
     __sync_fetch_and_sub(&d->count, 1);
+    return 0;
   }
-  return data;
+  return -1;
 }
-void dict_data_release(void *data)
+void dict_dump(dict *d, dict_cb_fn cb)
 {
-  dict_data_pair_destroy(data);
+  size_t i = 0;
+  for (; i < d->max_count; i++)
+  {
+    if (d->member_count[i] > 0)
+    {
+      fprintf(stdout, "---------------dump index =%d ---------------\n", i);
+      dict_data_pair *dp = (dict_data_pair *)d->members[i];
+      while (dp != NULL)
+      {
+        char *key = dp->key;
+        void *data = (void *)&dp->data;
+        cb(key, data);
+        dp = dp->next;
+      }
+    }
+  }
 }
 void dict_deinit(dict *d)
 {
   size_t i;
   for (i = 0; i < d->max_count; i++)
   {
-    dict_data_pair *dp = (dict_data_pair *)d->members[i];
-    while (dp != NULL)
+    if (d->member_count[i] > 0)
     {
-      free(dp->key);
-      free(dp);
-      dp = dp->next;
+      dict_data_pair *dp = (dict_data_pair *)d->members[i];
+      while (dp != NULL)
+      {
+        dict_data_pair *next = dp->next;
+        free(dp->key);
+        free(dp);
+        dp = next;
+        __sync_fetch_and_sub(&d->member_count[i], 1);
+        __sync_fetch_and_sub(&d->count, 1);
+      }
     }
   }
 }
