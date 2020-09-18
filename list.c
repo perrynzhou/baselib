@@ -58,7 +58,7 @@ int list_init(list *lt, size_t size)
   }
   return -1;
 }
-inline static list_node *list_search_node(list *lt, size_t index)
+inline static list_node *list_search_node(list *lt, size_t index, int64_t *pos)
 {
   list_node *res = NULL;
   if (lt->nelem == 0)
@@ -76,6 +76,7 @@ inline static list_node *list_search_node(list *lt, size_t index)
     if (index == i)
     {
       res = tmp;
+      *pos = i;
       break;
     }
     i++;
@@ -85,34 +86,32 @@ inline static list_node *list_search_node(list *lt, size_t index)
 }
 void *list_remove(list *lt, size_t index)
 {
+  int64_t pos=-1;
   void *data = NULL;
-  list_node *tmp = list_search_node(lt, index);
-  if (tmp != NULL)
-  {
-    data = &tmp->data;
-    if (tmp->prev != NULL)
-    {
-      tmp->prev->next = tmp->next;
+  list_node *tmp = list_search_node(lt, index,&pos);
+  
+  if(index<=lt->nelem-1) {
+
+    if(index == lt->nelem-1){
+      
     }
-    if (tmp->next != NULL)
+    
+  }
+  if(pos!=-1) {
+    if(pos==0) {
+
+    }else if(pos==lt->nelem-1)
     {
-      tmp->next->prev = tmp->prev;
+
+    }else{
+
     }
-    if (tmp == lt->head)
-    {
-      lt->head = tmp->next;
-    }
-    if (tmp == lt->tail)
-    {
-      lt->tail = tmp->prev;
-    }
-    __sync_fetch_and_sub(&lt->nelem, 1);
   }
   return data;
 }
 void *list_insert(list *lt, size_t index)
 {
-
+  int64_t pos = -1;
   void *data = NULL;
   list_node *node = list_node_alloc(lt->size);
   if (node == NULL)
@@ -120,26 +119,37 @@ void *list_insert(list *lt, size_t index)
     return data;
   }
   data = &node->data;
-  list_node *tmp = list_search_node(lt, index);
-  if (tmp == NULL)
+
+  if (lt->nelem == 0)
   {
     lt->head = lt->tail = node;
     __sync_fetch_and_add(&lt->nelem, 1);
     return data;
   }
-  if (tmp->prev != NULL)
+
+  list_node *tmp = list_search_node(lt, index, &pos);
+  if (pos == -1)
   {
-    node->prev = tmp->prev;
-    tmp->prev->next = node;
+    tmp->next = node;
+    node->prev = tmp;
+    lt->tail = node;
+        __sync_fetch_and_add(&lt->nelem, 1);
+    return data;
   }
-  node->next = tmp;
-  tmp->prev = node;
-  if(tmp==lt->head) {
+  if (pos == 0)
+  {
+    node->next = tmp;
+    tmp->prev = node;
     lt->head = node;
   }
-  if(tmp==lt->tail) {
-    
+  else
+  {
+    node->prev = tmp->prev;
+    node->next = tmp;
+    tmp->prev = node;
   }
+      __sync_fetch_and_add(&lt->nelem, 1);
+
   return data;
 }
 
