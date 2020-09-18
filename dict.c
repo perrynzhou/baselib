@@ -7,12 +7,15 @@
 
 #include "dict.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #define DM_DELTA 0x9E3779B9
 #define DM_FULLROUNDS 10
 #define DM_PARTROUNDS 6
+
 typedef struct dict_data_pair_t
 {
-  struct data_pair_t *next;
+  struct dict_data_pair_t *next;
   char *key;
   uint32_t hash;
   char data[0];
@@ -24,12 +27,6 @@ inline static dict_data_pair *dict_data_pair_create(const char *key, uint32_t ha
   dp->hash = hash;
   dp->key = strdup(key);
   return dp;
-}
-inline static void dict_data_pair_destroy(void *data)
-{
-  dict_data_pair *dp = (void *)(data) - sizeof(dict_data_pair);
-  free(dp->key);
-  free(dp);
 }
 inline static uint32_t __pad(int len)
 {
@@ -123,16 +120,17 @@ static uint32_t dict_default_hash_fn(const char *msg, int len)
 
   return (uint32_t)(h0 ^ h1);
 }
-static uint32_t dict_jump_consistent(uint64_t key, int32_t num_buckets)
+static uint64_t dict_jump_consistent(uint64_t key, uint32_t num_buckets)
 {
 
   int64_t b = -1, j = 0;
   uint32_t value = 0;
+
   while (j < num_buckets)
   {
     b = j;
     key = key * 2862933555777941757ULL + 1;
-    j = (b + 1) * ((double)(1LL << 31) / (double)((key >> 33) + 1));
+    j = (int64_t)((b + 1) * ((double)(1LL << 31) / (double)((key >> 33) + 1)));
   }
   value = (b < 0) ? (~b + 1) : b;
   return value;
@@ -142,8 +140,9 @@ int dict_init(dict *d, uint32_t max_count, dict_hash_fn hash_fn)
   memset(d, 0, sizeof(*d));
   d->max_count = max_count;
   d->count = 0;
-  d->hash_fn = (hash_fn == NULL) ? dict_default_hash_fn : hash_fn;
+  d->hash_fn = (hash_fn == NULL) ? (dict_hash_fn)dict_default_hash_fn : hash_fn;
   d->members = (void *)calloc(max_count, sizeof(void *));
+  d->member_count = (uint32_t *)calloc(max_count, sizeof(uint32_t));
   return 0;
 }
 dict *dict_create(uint32_t max_count, dict_hash_fn hash_fn)
@@ -160,26 +159,28 @@ static dict_data_pair *dict_fetch(dict *d, const char *key, size_t *key_len_ptr,
 {
   size_t key_len = strlen(key);
   uint32_t hash = d->hash_fn(key, key_len);
+  uint32_t index = dict_jump_consistent(hash, d->max_count);
+  *index_ptr = index;
   *hash_ptr = hash;
   *key_len_ptr = key_len;
-  uint32_t index = dict_jump_consistent(key, d->max_count);
-  *index_ptr = index;
   dict_data_pair *cur = NULL;
   dict_data_pair *data = NULL;
-  for (cur = d->members[index]; cur != NULL; cur = cur->next)
+  if (d->member_count[index] > 0)
   {
-    if (hash == cur->hash && strncmp(cur->key, key, key_len) == 0)
+    for (cur = (dict_data_pair *)d->members[index]; cur != NULL; cur = cur->next)
     {
-      data = cur;
-      break;
+      if (hash == cur->hash && strncmp(cur->key, key, key_len) == 0)
+      {
+        data = cur;
+        break;
+      }
+      *prev = cur;
     }
-    *prev = cur;
   }
   return data;
 }
-void *dict_add(dict *d, const char *key, size_t data_len)
+void *dict_add(dict *d, char *key, size_t data_len)
 {
-
   dict_data_pair *prev = NULL;
   uint32_t hash, index;
   size_t key_len;
@@ -191,15 +192,18 @@ void *dict_add(dict *d, const char *key, size_t data_len)
   data = dict_data_pair_create(key, hash, data_len);
   if (d->members[index] == NULL)
   {
-
     d->members[index] = data;
-    return (void *)&data->data;
   }
-  data->next = d->members[index];
-  d->members[index] = data;
+  else
+  {
+    data->next = d->members[index];
+    d->members[index] = data;
+  }
+  __sync_fetch_and_add(&d->member_count[index], 1);
+  __sync_fetch_and_add(&d->count, 1);
   return (void *)&data->data;
 }
-void *dict_get(dict *d, const char *key)
+void *dict_get(dict *d, char *key)
 {
   void *data = NULL;
   dict_data_pair *prev = NULL;
@@ -212,9 +216,8 @@ void *dict_get(dict *d, const char *key)
   }
   return data;
 }
-void *dict_del(dict *d, const char *key)
+int dict_del(dict *d, char *key, dict_data_free_fn fn)
 {
-  void *data = NULL;
   dict_data_pair *prev = NULL;
   uint32_t hash, index;
   size_t key_len;
@@ -230,24 +233,54 @@ void *dict_del(dict *d, const char *key)
       prev->next = dp->next;
     }
     dp->next = NULL;
-    data = (void *)&dp->data;
+    free(dp->key);
+    if (fn != NULL)
+    {
+      fn(dp->data);
+    }
+    free(dp);
+    __sync_fetch_and_sub(&d->member_count[index], 1);
+    __sync_fetch_and_sub(&d->count, 1);
+    return 0;
   }
-  return data;
+  return -1;
 }
-void dict_data_release(void *data)
+void dict_dump(dict *d, dict_cb_fn cb)
 {
-  dict_data_pair_destroy(data);
+  size_t i = 0;
+  for (; i < d->max_count; i++)
+  {
+    if (d->member_count[i] > 0)
+    {
+      fprintf(stdout, "---------------dump index =%d ---------------\n", i);
+      dict_data_pair *dp = (dict_data_pair *)d->members[i];
+      while (dp != NULL)
+      {
+        char *key = dp->key;
+        void *data = (void *)&dp->data;
+        cb(key, data);
+        dp = dp->next;
+      }
+    }
+  }
 }
 void dict_deinit(dict *d)
 {
-  for (size_t i = 0; i < d->max_count; i++)
+  size_t i;
+  for (i = 0; i < d->max_count; i++)
   {
-    dict_data_pair *dp = d->members[i];
-    while (dp != NULL)
+    if (d->member_count[i] > 0)
     {
-      free(dp->key);
-      free(dp);
-      dp = dp->next;
+      dict_data_pair *dp = (dict_data_pair *)d->members[i];
+      while (dp != NULL)
+      {
+        dict_data_pair *next = dp->next;
+        free(dp->key);
+        free(dp);
+        dp = next;
+        __sync_fetch_and_sub(&d->member_count[i], 1);
+        __sync_fetch_and_sub(&d->count, 1);
+      }
     }
   }
 }
@@ -255,7 +288,7 @@ void dict_destroy(dict *d)
 {
   if (d != NULL)
   {
-    dict_init(d);
+    dict_deinit(d);
     free(d);
     d = NULL;
   }
