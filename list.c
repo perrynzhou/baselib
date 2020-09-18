@@ -58,7 +58,7 @@ int list_init(list *lt, size_t size)
   }
   return -1;
 }
-inline static list_node *list_search_node(list *lt, size_t index, int64_t *pos)
+inline static list_node *list_search_node(list *lt, size_t index)
 {
   list_node *res = NULL;
   if (lt->nelem == 0)
@@ -76,7 +76,6 @@ inline static list_node *list_search_node(list *lt, size_t index, int64_t *pos)
     if (index == i)
     {
       res = tmp;
-      *pos = i;
       break;
     }
     i++;
@@ -86,32 +85,31 @@ inline static list_node *list_search_node(list *lt, size_t index, int64_t *pos)
 }
 void *list_remove(list *lt, size_t index)
 {
-  int64_t pos=-1;
   void *data = NULL;
-  list_node *tmp = list_search_node(lt, index,&pos);
-  
-  if(index<=lt->nelem-1) {
-
-    if(index == lt->nelem-1){
-      
-    }
-    
-  }
-  if(pos!=-1) {
-    if(pos==0) {
-
-    }else if(pos==lt->nelem-1)
-    {
-
+  list_node *tmp = list_search_node(lt, index);
+  if(tmp!=NULL) {
+    if(index==0) {
+      if(tmp==lt->tail) 
+      {
+          lt->head = lt->tail = NULL;
+      }else{
+         lt->head = tmp->next;
+         lt->head->prev = NULL;
+      }
     }else{
-
+        if(tmp==lt->tail) 
+      {
+          lt->tail= tmp->prev;
+          lt->tail->next = NULL;
+      }else{
+         
+      }
     }
   }
   return data;
 }
 void *list_insert(list *lt, size_t index)
 {
-  int64_t pos = -1;
   void *data = NULL;
   list_node *node = list_node_alloc(lt->size);
   if (node == NULL)
@@ -127,8 +125,8 @@ void *list_insert(list *lt, size_t index)
     return data;
   }
 
-  list_node *tmp = list_search_node(lt, index, &pos);
-  if (pos == -1)
+  list_node *tmp = list_search_node(lt, index);
+  if (tmp == NULL)
   {
     tmp->next = node;
     node->prev = tmp;
@@ -136,7 +134,7 @@ void *list_insert(list *lt, size_t index)
         __sync_fetch_and_add(&lt->nelem, 1);
     return data;
   }
-  if (pos == 0)
+  if (index == 0)
   {
     node->next = tmp;
     tmp->prev = node;
