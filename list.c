@@ -87,8 +87,25 @@ void *list_remove(list *lt, size_t index)
 {
   void *data = NULL;
   list_node *tmp = list_search_node(lt, index);
-  if(tmp!=NULL) {
-   
+  if (tmp != NULL)
+  {
+    if (tmp->prev != NULL)
+    {
+      tmp->prev->next = tmp->next;
+    }
+    else
+    {
+      lt->head = tmp->next;
+    }
+    if (tmp->next != NULL)
+    {
+      tmp->next->prev = tmp->prev;
+    }
+    else
+    {
+      lt->tail = tmp->prev;
+    }
+    __sync_fetch_and_sub(&lt->nelem, 1);
   }
   return data;
 }
@@ -101,7 +118,6 @@ void *list_insert(list *lt, size_t index)
     return data;
   }
   data = &node->data;
-
   if (lt->nelem == 0)
   {
     lt->head = lt->tail = node;
@@ -112,26 +128,28 @@ void *list_insert(list *lt, size_t index)
   list_node *tmp = list_search_node(lt, index);
   if (tmp == NULL)
   {
-    tmp->next = node;
-    node->prev = tmp;
+    node->prev = lt->tail;
+    lt->tail->next = node;
     lt->tail = node;
     __sync_fetch_and_add(&lt->nelem, 1);
     return data;
   }
-  if (index == 0)
+  node->prev = tmp->prev;
+  if (tmp->prev != NULL)
   {
-    node->next = tmp;
-    tmp->prev = node;
+    tmp->prev->next = node;
+  }
+  node->next = tmp;
+  tmp->prev = node;
+  if (!node->prev)
+  {
     lt->head = node;
   }
-  else
+  if (!node->next)
   {
-    node->prev = tmp->prev;
-    node->next = tmp;
-    tmp->prev = node;
+    lt->tail = node;
   }
   __sync_fetch_and_add(&lt->nelem, 1);
-
   return data;
 }
 
