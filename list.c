@@ -88,23 +88,7 @@ void *list_remove(list *lt, size_t index)
   void *data = NULL;
   list_node *tmp = list_search_node(lt, index);
   if(tmp!=NULL) {
-    if(index==0) {
-      if(tmp==lt->tail) 
-      {
-          lt->head = lt->tail = NULL;
-      }else{
-         lt->head = tmp->next;
-         lt->head->prev = NULL;
-      }
-    }else{
-        if(tmp==lt->tail) 
-      {
-          lt->tail= tmp->prev;
-          lt->tail->next = NULL;
-      }else{
-         
-      }
-    }
+   
   }
   return data;
 }
@@ -131,7 +115,7 @@ void *list_insert(list *lt, size_t index)
     tmp->next = node;
     node->prev = tmp;
     lt->tail = node;
-        __sync_fetch_and_add(&lt->nelem, 1);
+    __sync_fetch_and_add(&lt->nelem, 1);
     return data;
   }
   if (index == 0)
@@ -146,7 +130,7 @@ void *list_insert(list *lt, size_t index)
     node->next = tmp;
     tmp->prev = node;
   }
-      __sync_fetch_and_add(&lt->nelem, 1);
+  __sync_fetch_and_add(&lt->nelem, 1);
 
   return data;
 }
