@@ -23,4 +23,6 @@ uint32_t hash_one_at_a_time(const char *key, size_t key_length);
 uint32_t hash_jump_consistent(uint64_t key, int32_t num_buckets);
 uint64_t hash_gfs(const char *msg, int len);
 uint32_t hash_jump_consistent(uint64_t key, int32_t num_buckets);
+uint32_t hash_super_fast(const char *data, int32_t len);
+
 #endif
