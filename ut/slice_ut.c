@@ -8,12 +8,14 @@
 #include "../slice.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 void test_slice_create()
 {
   const char *str = "abcdedfghyhd";
   size_t len = strlen(str);
   slice s = slice_create(str);
   fprintf(stdout, "str len=%ld,slice len:%ld,value:%s\n", len, slice_len(s), (char *)s);
+
 }
 int main(void)
 {
