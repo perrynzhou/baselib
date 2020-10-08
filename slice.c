@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 #define SLICE_TYPE_5 0
 #define SLICE_TYPE_8 1
 #define SLICE_TYPE_16 2
@@ -21,6 +22,8 @@
 #define SLICE_HDR(T, s) ((struct slice_hdr##T *)((s) - (sizeof(struct slice_hdr##T))))
 #define SLICE_MAX_PREALLOC (1024 * 1024)
 #define SLICE_TYPE_5_LEN(f) ((f) >> SLICE_TYPE_BITS)
+#define SLICE_MAX_INT_T_VALUE  9223372036854775807
+
 struct __attribute__((__packed__)) slice_hdr5
 {
   unsigned char flags;

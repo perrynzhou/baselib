@@ -23,7 +23,7 @@ inline static int list_node_free(void *data)
 {
   if (data != NULL)
   {
-    list_node *node = (list_node *)(data - sizeof(list_node));
+    list_node *node = (void *)(data - sizeof(list_node));
     free(node);
     return 0;
   }
@@ -169,7 +169,6 @@ void *list_push_back(list *lt)
   }
   else
   {
-    node->next = lt->tail->next;
     node->prev = lt->tail;
     lt->tail->next = node;
     lt->tail = node;
@@ -192,7 +191,6 @@ void *list_push_front(list *lt)
   }
   else
   {
-    node->prev = lt->head->prev;
     node->next = lt->head;
     lt->head->prev = node;
     lt->head = node;
@@ -202,7 +200,7 @@ void *list_push_front(list *lt)
 }
 void *list_pop_back(list *lt)
 {
-  if (lt->nelem == 0)
+  if (lt->nelem == 0||lt->tail==NULL)
   {
     return NULL;
   }
@@ -218,7 +216,7 @@ void *list_pop_back(list *lt)
 }
 void *list_pop_front(list *lt)
 {
-  if (lt->nelem == 0)
+  if (lt->nelem == 0||lt->head==NULL)
   {
     return NULL;
   }
@@ -230,7 +228,10 @@ void *list_pop_front(list *lt)
   }
   node->prev = node->next = NULL;
   __sync_fetch_and_sub(&lt->nelem, 1);
-
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = NULL;
+  }
   return (void *)&node->data;
 }
 int list_release_elem(void *data)
@@ -303,7 +304,7 @@ list *list_dup(list *lt)
 }
 void list_deinit(list *lt)
 {
-  if (lt != NULL)
+  if (lt != NULL && lt->size > 0)
   {
     list_node *node = lt->head;
     for (node = lt->head; node != NULL; node = node->next)
@@ -314,7 +315,7 @@ void list_deinit(list *lt)
     lt->nelem = 0;
   }
 }
-void list_free(list *lt)
+void list_destroy(list *lt)
 {
   list_deinit(lt);
   if (lt != NULL)
