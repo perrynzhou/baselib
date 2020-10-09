@@ -102,7 +102,7 @@ void queue_deinit(queue *q)
     }
   }
 }
-void queue_free(queue *q)
+void queue_destroy(queue *q)
 {
   queue_deinit(q);
   if (q != NULL)

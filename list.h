@@ -28,8 +28,6 @@ size_t list_len(list *lt);
 int list_init(list *lt, size_t size);
 void *list_push_back(list *lt);
 void *list_push_front(list *lt);
-void *list_insert(list *lt, size_t index);
-void *list_remove(list *lt, size_t index);
 void *list_pop_back(list *lt);
 void *list_pop_front(list *lt);
 int list_release_elem(void *data);
