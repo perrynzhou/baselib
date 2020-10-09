@@ -28,14 +28,12 @@ size_t list_len(list *lt);
 int list_init(list *lt, size_t size);
 void *list_push_back(list *lt);
 void *list_push_front(list *lt);
-void *list_insert(list *lt, size_t index);
-void *list_remove(list *lt, size_t index);
 void *list_pop_back(list *lt);
 void *list_pop_front(list *lt);
 int list_release_elem(void *data);
 int list_reverse(list *lt);
 list *list_dup(list *lt);
-void list_free(list *lt);
+void list_destroy(list *lt);
 void list_dump(list *lt, list_dump_cb cb);
 void list_deinit(list *lt);
 #endif

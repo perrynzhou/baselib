@@ -17,13 +17,13 @@ typedef struct queue_t
   size_t size;
 } queue;
 
-queue *queue_alloc(size_t size);
+queue *queue_create(size_t size);
 int queue_init(queue *q, size_t size);
 size_t queue_len(queue *q);
 void *queue_push(queue *q);
 void  *queue_pop(queue *q);
 void queue_releae_elem(void *data);
 bool queue_is_empty(queue *q);
-void queue_free(queue *q);
+void queue_destroy(queue *q);
 void queue_deinit(queue *q);
 #endif
