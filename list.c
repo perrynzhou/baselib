@@ -87,41 +87,40 @@ inline static list_node *list_search_node(list *lt, size_t index)
 static void *list_push(list *lt, int direction)
 {
   void *data = NULL;
-  if (lt != NULL)
+
+  list_node *node = NULL;
+  if ((node = list_node_alloc(lt->size)) == NULL)
   {
-    list_node *node = list_node_alloc(lt->size);
-    assert(node != NULL);
-    data = (void *)&node->data;
-    if (lt->nelem == 0)
+    return NULL;
+  }
+  data = (void *)&node->data;
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = node;
+    node->prev = node->next = NULL;
+  }
+  else
+  {
+    if (direction == 1)
     {
-      lt->head = lt->tail = node;
+      node->prev = lt->tail;
+      if (lt->tail != NULL)
+      {
+        lt->tail->next = node;
+        lt->tail = node;
+      }
     }
     else
     {
-      switch (direction)
+      node->next = lt->head;
+      if (lt->head != NULL)
       {
-      case 1:
-        node->prev = lt->tail;
-        if (lt->tail != NULL)
-        {
-          lt->tail->next = node;
-          lt->tail = node;
-        }
-        break;
-      case 0:
-        node->next = lt->head;
-        if (lt->head != NULL)
-        {
-          lt->head->prev = node;
-          lt->head = node;
-        }
-        break;
-      default:
-        break;
+        lt->head->prev = node;
+        lt->head = node;
       }
     }
-    __sync_fetch_and_add(&lt->nelem, 1);
   }
+  __sync_fetch_and_add(&lt->nelem, 1);
   return data;
 }
 void *list_push_back(list *lt)
@@ -135,40 +134,39 @@ void *list_push_front(list *lt)
 }
 static void *list_pop(list *lt, int direction)
 {
-  void *data = NULL;
-  if (lt != NULL && lt->nelem > 0)
+  if (lt->nelem == 0)
   {
-    list_node *node = NULL;
-    switch (direction)
-    {
-    //pop_back
-    case 1:
-      node = lt->tail;
-      if (node->prev != NULL)
-      {
-        lt->tail = node->prev;
-        lt->tail->next = NULL;
-      }
-      break;
-    case 0:
-      node = lt->head;
-      if (node->next != NULL)
-      {
-        lt->head = node->next;
-        lt->head->prev = NULL;
-      }
-      break;
-    default:
-      break;
-    }
-    __sync_fetch_and_sub(&lt->nelem, 1);
-    if (lt->nelem==0)
-    {
-      lt->head = lt->tail = NULL;
-    }
-    node->prev = node->next = NULL;
-    data = &node->data;
+    return NULL;
   }
+  void *data = NULL;
+
+  list_node *node = NULL;
+  if (direction == 1)
+  {
+
+    node = lt->tail;
+    if (node->prev != NULL)
+    {
+      lt->tail = node->prev;
+      lt->tail->next = NULL;
+    }
+  }
+  else
+  {
+    node = lt->head;
+    if (node->next != NULL)
+    {
+      lt->head = node->next;
+      lt->head->prev = NULL;
+    }
+  }
+  __sync_fetch_and_sub(&lt->nelem, 1);
+  if (lt->nelem == 0)
+  {
+    lt->head = lt->tail = NULL;
+  }
+  node->prev = node->next = NULL;
+  data = &node->data;
   return data;
 }
 void *list_pop_back(list *lt)
@@ -185,37 +183,44 @@ int list_release_elem(void *data)
 }
 int list_reverse(list *lt)
 {
-  if (lt != NULL && lt->nelem > 0)
+  if (lt->nelem == 0)
   {
-    list_node *tmp = lt->tail;
-    list_node *new_head = tmp;
-    list_node *new_tail = tmp;
-    tmp = tmp->prev;
-    new_head->prev = NULL;
-    new_head->next = NULL;
-    while (tmp != NULL)
-    {
-      list_node *prev = tmp->prev;
-      tmp->next = tmp->prev = NULL;
-      new_tail->next = tmp;
-      tmp->prev = new_tail;
-      new_tail = tmp;
-      tmp = prev;
-    }
-    lt->head = new_head;
-    lt->tail = new_tail;
+    return -1;
   }
+
+  list_node *tmp = lt->tail;
+  list_node *new_head = tmp;
+  list_node *new_tail = tmp;
+  tmp = tmp->prev;
+  new_head->prev = NULL;
+  new_head->next = NULL;
+  while (tmp != NULL)
+  {
+    list_node *prev = tmp->prev;
+    tmp->next = tmp->prev = NULL;
+    new_tail->next = tmp;
+    tmp->prev = new_tail;
+    new_tail = tmp;
+    tmp = prev;
+  }
+  lt->head = new_head;
+  lt->tail = new_tail;
+
   return 0;
 }
 void list_dump(list *lt, list_dump_cb cb)
 {
-  if (lt != NULL && lt->nelem > 0 && cb != NULL)
+
+  if (lt->nelem > 0)
   {
     list_node *tmp = lt->head;
     while (tmp != NULL)
     {
       void *data = (void *)&tmp->data;
-      cb(data);
+      if (cb != NULL)
+      {
+        cb(data);
+      }
       tmp = tmp->next;
     }
   }
@@ -249,7 +254,7 @@ list *list_dup(list *lt)
 }
 void list_deinit(list *lt)
 {
-  if (lt != NULL && lt->size > 0)
+  if (lt->nelem > 0)
   {
     list_node *node = lt->head;
     for (node = lt->head; node != NULL; node = node->next)
@@ -257,7 +262,6 @@ void list_deinit(list *lt)
       free(node);
       __sync_fetch_and_sub(&lt->nelem, 1);
     }
-    lt->nelem = 0;
   }
 }
 void list_destroy(list *lt)
