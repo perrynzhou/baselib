@@ -1,36 +1,36 @@
 /*************************************************************************
-  > File Name: list.c
+  > File Name: stack.c
   > Author:perrynzhou
   > Mail:perrynzhou@gmail.com
   > Created Time: Monday, July 13, 2020 PM02:39:00 HKT
  ************************************************************************/
 
-#include "list.h"
+#include "stack.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-inline static list_node *list_node_alloc(size_t size)
+inline static stack_node *stack_node_alloc(size_t size)
 {
-  list_node *node = calloc(1, size + sizeof(list_node));
+  stack_node *node = calloc(1, size + sizeof(stack_node));
   if (node != NULL)
   {
     node->next = node->prev = NULL;
   }
   return node;
 }
-inline static int list_node_free(void *data)
+inline static int stack_node_free(void *data)
 {
   if (data != NULL)
   {
-    list_node *node = (void *)(data - sizeof(list_node));
+    stack_node *node = (void *)(data - sizeof(stack_node));
     free(node);
     return 0;
   }
   return -1;
 }
-size_t list_len(list *lt)
+size_t stack_len(stack *lt)
 {
   if (lt != NULL)
   {
@@ -38,17 +38,17 @@ size_t list_len(list *lt)
   }
   return 0;
 }
-list *list_create(size_t size)
+stack *stack_create(size_t size)
 {
 
-  list *lt = calloc(1, sizeof(list));
-  if (list_init(lt, size) != 0)
+  stack *lt = calloc(1, sizeof(stack));
+  if (stack_init(lt, size) != 0)
   {
     return NULL;
   }
   return lt;
 }
-int list_init(list *lt, size_t size)
+int stack_init(stack *lt, size_t size)
 {
   if (lt != NULL)
   {
@@ -59,9 +59,9 @@ int list_init(list *lt, size_t size)
   }
   return -1;
 }
-inline static list_node *list_search_node(list *lt, size_t index)
+inline static stack_node *stack_search_node(stack *lt, size_t index)
 {
-  list_node *res = NULL;
+  stack_node *res = NULL;
   if (lt->nelem == 0)
   {
     return NULL;
@@ -71,7 +71,7 @@ inline static list_node *list_search_node(list *lt, size_t index)
     return lt->tail;
   }
   size_t i = 0;
-  list_node *tmp = lt->head;
+  stack_node *tmp = lt->head;
   while (tmp != NULL)
   {
     if (index == i)
@@ -84,12 +84,12 @@ inline static list_node *list_search_node(list *lt, size_t index)
   }
   return res;
 }
-static void *list_push(list *lt, int direction)
+static void *stack_push(stack *lt, int direction)
 {
   void *data = NULL;
 
-  list_node *node = NULL;
-  if ((node = list_node_alloc(lt->size)) == NULL)
+  stack_node *node = NULL;
+  if ((node = stack_node_alloc(lt->size)) == NULL)
   {
     return NULL;
   }
@@ -123,16 +123,16 @@ static void *list_push(list *lt, int direction)
   __sync_fetch_and_add(&lt->nelem, 1);
   return data;
 }
-void *list_push_back(list *lt)
+void *stack_push_back(stack *lt)
 {
 
-  return list_push(lt, 1);
+  return stack_push(lt, 1);
 }
-void *list_push_front(list *lt)
+void *stack_push_front(stack *lt)
 {
-  return list_push(lt, 0);
+  return stack_push(lt, 0);
 }
-static void *list_pop(list *lt, int direction)
+static void *stack_pop(stack *lt, int direction)
 {
   if (lt->nelem == 0)
   {
@@ -140,7 +140,7 @@ static void *list_pop(list *lt, int direction)
   }
   void *data = NULL;
 
-  list_node *node = NULL;
+  stack_node *node = NULL;
   if (direction == 1)
   {
 
@@ -169,34 +169,34 @@ static void *list_pop(list *lt, int direction)
   data = &node->data;
   return data;
 }
-void *list_pop_back(list *lt)
+void *stack_pop_back(stack *lt)
 {
-  return list_pop(lt, 1);
+  return stack_pop(lt, 1);
 }
-void *list_pop_front(list *lt)
+void *stack_pop_front(stack *lt)
 {
-  return list_pop(lt, 0);
+  return stack_pop(lt, 0);
 }
-int list_release_elem(void *data)
+int stack_release_elem(void *data)
 {
-  return list_node_free(data);
+  return stack_node_free(data);
 }
-int list_reverse(list *lt)
+int stack_reverse(stack *lt)
 {
   if (lt->nelem == 0)
   {
     return -1;
   }
 
-  list_node *tmp = lt->tail;
-  list_node *new_head = tmp;
-  list_node *new_tail = tmp;
+  stack_node *tmp = lt->tail;
+  stack_node *new_head = tmp;
+  stack_node *new_tail = tmp;
   tmp = tmp->prev;
   new_head->prev = NULL;
   new_head->next = NULL;
   while (tmp != NULL)
   {
-    list_node *prev = tmp->prev;
+    stack_node *prev = tmp->prev;
     tmp->next = tmp->prev = NULL;
     new_tail->next = tmp;
     tmp->prev = new_tail;
@@ -208,12 +208,12 @@ int list_reverse(list *lt)
 
   return 0;
 }
-void list_dump(list *lt, list_dump_cb cb)
+void stack_dump(stack *lt, stack_dump_cb cb)
 {
 
   if (lt->nelem > 0)
   {
-    list_node *tmp = lt->head;
+    stack_node *tmp = lt->head;
     while (tmp != NULL)
     {
       void *data = (void *)&tmp->data;
@@ -225,17 +225,17 @@ void list_dump(list *lt, list_dump_cb cb)
     }
   }
 }
-list *list_dup(list *lt)
+stack *stack_dup(stack *lt)
 {
   if (lt->nelem == 0)
   {
     return NULL;
   }
-  list_node *node = lt->head;
-  list *new_lt = list_create(lt->size);
+  stack_node *node = lt->head;
+  stack *new_lt = stack_create(lt->size);
   for (size_t i = 0; i < lt->nelem; i++)
   {
-    list_node *new_node = list_node_alloc(new_lt->size);
+    stack_node *new_node = stack_node_alloc(new_lt->size);
     memcpy((void *)&new_node->data, &node->data, new_lt->size);
     if (new_lt->nelem == 0)
     {
@@ -252,11 +252,11 @@ list *list_dup(list *lt)
   }
   return new_lt;
 }
-void list_deinit(list *lt)
+void stack_deinit(stack *lt)
 {
   if (lt->nelem > 0)
   {
-    list_node *node = lt->head;
+    stack_node *node = lt->head;
     for (node = lt->head; node != NULL; node = node->next)
     {
       free(node);
@@ -264,9 +264,9 @@ void list_deinit(list *lt)
     }
   }
 }
-void list_destroy(list *lt)
+void stack_destroy(stack *lt)
 {
-  list_deinit(lt);
+  stack_deinit(lt);
   if (lt != NULL)
   {
     free(lt);
