@@ -21,6 +21,7 @@ slice slice_fmt(slice s, char const *fmt, ...);
 slice slice_trim(slice s, const char *cset);
 void slice_reset(slice s);
 int slice_cmp(const slice s1, const slice s2);
+void slice_destroy(slice s);
 void slice_tolower(slice s);
 void slice_toupper(slice s);
 #endif
