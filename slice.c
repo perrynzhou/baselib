@@ -109,6 +109,32 @@ size_t slice_len(const slice s)
   }
   return 0;
 }
+void slice_destroy(slice s)
+{
+  void *data = NULL;
+  unsigned char flags = s[-1];
+  unsigned char ret = (flags & SLICE_TYPE_MASK);
+  if(ret ==SLICE_TYPE_5) {
+    SLICE_HDR_VAR(5,s);
+    data = sh;
+  }else if(ret==SLICE_TYPE_8) {
+    SLICE_HDR_VAR(8, s);
+    data = sh;
+  }else if(ret ==SLICE_TYPE_16) {
+    SLICE_HDR_VAR(16, s);
+    data = sh;
+  }else if(ret ==SLICE_TYPE_32){
+    SLICE_HDR_VAR(32, s);
+    data = sh;
+  }else if(ret==SLICE_TYPE_64){
+    SLICE_HDR_VAR(64, s);
+    data = sh;
+  }
+  if(data !=NULL) {
+    free(data);
+    s=NULL;
+  }
+}
 static inline void slice_set_len(slice s, size_t newlen)
 {
   unsigned char flags = s[-1];
