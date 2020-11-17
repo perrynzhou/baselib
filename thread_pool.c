@@ -12,102 +12,31 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <unistd.h>
-#include <uuid/uuid.h>
 #include <string.h>
 #include <stdint.h>
-#define get16bits(d) (*((const uint16_t *)(d)))
-uint32_t super_fast_hash(const char *data, int32_t len)
-{
-    uint32_t hash = len, tmp;
-    int32_t rem;
-
-    if (len <= 1 || data == NULL)
-        return 1;
-
-    rem = len & 3;
-    len >>= 2;
-
-    /* Main loop */
-    for (; len > 0; len--) {
-        hash += get16bits(data);
-        tmp = (get16bits(data + 2) << 11) ^ hash;
-        hash = (hash << 16) ^ tmp;
-        data += 2 * sizeof(uint16_t);
-        hash += hash >> 11;
-    }
-
-    /* Handle end cases */
-    switch (rem) {
-        case 3:
-            hash += get16bits(data);
-            hash ^= hash << 16;
-            hash ^= data[sizeof(uint16_t)] << 18;
-            hash += hash >> 11;
-            break;
-        case 2:
-            hash += get16bits(data);
-            hash ^= hash << 11;
-            hash += hash >> 17;
-            break;
-        case 1:
-            hash += *data;
-            hash ^= hash << 10;
-            hash += hash >> 1;
-    }
-
-    /* Force "avalanching" of final 127 bits */
-    hash ^= hash << 3;
-    hash += hash >> 5;
-    hash ^= hash << 4;
-    hash += hash >> 17;
-    hash ^= hash << 25;
-    hash += hash >> 6;
-
-    return hash;
-}
 thread_pool *thread_pool_create(uint32_t max_requests, int thread_count, thread_func func)
 {
   thread_pool *pool = calloc(1, sizeof(thread_pool));
   assert(pool != NULL);
-  if (thread_pool_init(pool,max_requests, thread_count, func) != 0)
+  if (thread_pool_init(pool, max_requests, thread_count, func) != 0)
   {
+    thread_pool_deinit(pool);
     free(pool);
     pool = NULL;
   }
   return pool;
 }
-int thread_pool_init(thread_pool *pool, uint32_t max_requests, int thread_count, thread_func func)
+static void *thread_pool_func(void *arg)
 {
-  if (pool != NULL)
+  thread_pool_ctx *ctx = (thread_pool_ctx *)arg;
+  thread_pool *pool = ctx->pool;
+  fprintf(stdout, " ctx index = %d\n", ctx->index);
+  while (!ctx->stop)
   {
-    pool->func = func;
-    pool->max_requests = max_requests;
-    pool->requests = queue_create(sizeof(void **));
-    pool->stop = false;
-    pool->thread_count = thread_count;
-    pool->threads = calloc(thread_count, sizeof(pthread_t));
-    pool->sems =  calloc(thread_count, sizeof(sem_t));
-    assert(pool->threads != NULL);
-    pthread_mutex_init(&pool->mutex, NULL);
-    int i;
-    for(i=0;i<thread_count;i++) {
-        sem_init(&pool->sems[i], 0, 0);
-
-    }
-    return 0;
-  }
-  return -1;
-}
-static void *thread_pool_run(void *arg)
-{
-   thread_pool *pool = (thread_pool *)arg;
-  fprintf(stdout,"thread index = %d\n",pool->index);
-  while (!pool->stop)
-  {
-    sem_wait(&pool->sems[pool->index]);
-    if (pool->stop)
+    sem_wait(&ctx->sem);
+    if (ctx->stop)
     {
-      fprintf(stdout,"got stop %d\n",pool->sems[pool->index]);
+      fprintf(stdout, "got stop %d\n", ctx->index);
       break;
     }
     pthread_mutex_lock(&pool->mutex);
@@ -122,97 +51,136 @@ static void *thread_pool_run(void *arg)
   }
   return NULL;
 }
-  int thread_pool_append(thread_pool * pool, void *request)
+int thread_pool_init(thread_pool *pool, uint32_t max_requests, int thread_count, thread_func func)
+{
+  if (pool != NULL)
   {
-    char key[36] = {'\0'};
-    if (queue_len(pool->requests) >= pool->max_requests)
+    pool->func = func;
+    pool->max_requests = max_requests;
+    pool->requests = queue_create(sizeof(void **));
+    pool->ctx = (thread_pool_ctx *)calloc(thread_count, sizeof(thread_pool_ctx));
+    assert(pool->ctx != NULL);
+
+    pool->thread_count = thread_count;
+    pthread_mutex_init(&pool->mutex, NULL);
+    pool->index = -1;
+    pool->status = false;
+    int i;
+    for (i = 0; i < thread_count; i++)
     {
-      return -1;
+      pool->ctx[i].index = i;
+      pool->ctx[i].pool = pool;
+      pool->ctx[i].stop = false;
+      sem_init(&pool->ctx[i].sem, 0, 0);
     }
-    pthread_mutex_lock(&pool->mutex);
-    void **value = (void **)queue_push(pool->requests);
-    *value = request;
-    pthread_mutex_unlock(&pool->mutex);
-    uuid_t uuid;
-    uuid_generate(uuid);
-    uuid_unparse(uuid, key);
-    uint32_t index = super_fast_hash((char *)&key,strlen((char *)&key))%pool->thread_count;
-    sem_post(&pool->sems[index]);
     return 0;
   }
-  void thread_pool_start(thread_pool * pool)
+  return -1;
+}
+
+void thread_pool_run(thread_pool *pool)
+{
+  int i;
+  for (i = 0; i < pool->thread_count; i++)
+  {
+    if (!pool->status)
+    {
+      pool->status = true;
+    }
+    thread_pool_ctx *ctx = &pool->ctx[i];
+    pthread_create(&pool->ctx[i].tid, NULL, thread_pool_func, &pool->ctx[i]);
+  }
+}
+int thread_pool_add_task(thread_pool *pool, void *request)
+{
+  if (queue_len(pool->requests) >= pool->max_requests)
+  {
+    return -1;
+  }
+  pthread_mutex_lock(&pool->mutex);
+  void **value = (void **)queue_push(pool->requests);
+  if (pool->index >= pool->thread_count)
+  {
+    pool->index = -1;
+  }
+  pool->index++;
+  *value = request;
+  pthread_mutex_unlock(&pool->mutex);
+  sem_post(&pool->ctx[pool->index].sem);
+  return 0;
+}
+
+void thread_pool_stop(thread_pool *pool)
+{
+  if (pool != NULL && pool->status)
   {
     int i = 0;
     for (; i < pool->thread_count; i++)
     {
-        pthread_mutex_lock(&pool->mutex);
-        pthread_create(&pool->threads[i], NULL,thread_pool_run,pool);
-        pool->index=i;
-        pthread_mutex_unlock(&pool->mutex);
-
+      pool->ctx[i].stop = true;
+      sem_post(&pool->ctx[i].sem);
     }
   }
-  void thread_pool_stop(thread_pool * pool)
+}
+int thread_pool_deinit(thread_pool *pool)
+{
+  if (pool != NULL && pool->thread_count > 0)
   {
-    if(pool !=NULL) {
-      int i=0;
-      for(;i<pool->thread_count;i++) {
-          pool->stop = true;
-          sem_post(&pool->sems[i]);
-      }
-    }
-  }
-  int thread_pool_deinit(thread_pool * pool)
-  {
-    if(pool!=NULL && pool->thread_count >0) 
+    int i = 0;
+    for (; i < pool->thread_count; i++)
     {
-      int i=0;
-      for(;i<pool->thread_count;i++)
+      if (pool->status)
       {
-        pthread_join(pool->threads[i],NULL);
+        pthread_join(pool->ctx[i].tid, NULL);
       }
-      pthread_mutex_destroy(&pool->mutex);
-     // sem_destroy(&pool->sem);
-      return 0;
+      sem_destroy(&pool->ctx[i].sem);
     }
-    return -1;
+    pthread_mutex_destroy(&pool->mutex);
+    queue_destroy(pool->requests);
+    free(pool->ctx);
+    return 0;
   }
-  void thread_pool_destroy(thread_pool * pool)
+  return -1;
+}
+void thread_pool_destroy(thread_pool *pool)
+{
+  if (thread_pool_deinit(pool) != -1)
   {
-    if(thread_pool_deinit(pool)!=-1)
-    {
-      free(pool->threads);
-      queue_destroy(pool->requests);
-      free(pool);
-    }
+    free(pool);
   }
+}
 
-  #ifdef THREAD_POOL_TEST
-  int test_func(void *arg) {
-    if(arg !=NULL) {
+#ifdef THREAD_POOL_TEST
+int test_func(void *arg)
+{
+  if (arg != NULL)
+  {
     int *v = (int *)arg;
-    fprintf(stdout,"pthread id=%ld,handle value=%d\n",pthread_self(),*v);
-    }
-    return 0;
+    fprintf(stdout, "pthread id=%ld,handle value=%d\n", pthread_self(), *v);
   }
-  int main(int argc,char *argv[]) {
-    thread_pool p1;
-    thread_pool_init(&p1,10,2,test_func);
-    thread_pool_start(&p1);
-    int i=0,n=20;
-    int *arrs = calloc(n,sizeof(int));
-    for(;i<n/2;i++) {
-      arrs[i] = rand()%1024-1;
-      fprintf(stdout,"add ret=%d\n",thread_pool_append(&p1,&arrs[i]));
-    }
-    sleep(1);
-    for(i=0;i<n/2;i++) {
-      arrs[i] = rand()%1024-1;
-      fprintf(stdout,"add ret=%d\n",thread_pool_append(&p1,&arrs[i]));
-    }
-    sleep(4);
-    thread_pool_stop(&p1);
-    thread_pool_deinit(&p1);
-    return 0;
+  return 0;
+}
+int main(int argc, char *argv[])
+{
+  thread_pool p1;
+  thread_pool_init(&p1, 10, 2, test_func);
+  thread_pool_run(&p1);
+  int i = 0, n = 20;
+  int *arrs = calloc(n, sizeof(int));
+  for (; i < n / 2; i++)
+  {
+    arrs[i] = rand() % 1024 - 1;
+    fprintf(stdout, "add ret=%d\n", thread_pool_add_task(&p1, &arrs[i]));
   }
-  #endif
+  sleep(1);
+  for (i = 0; i < n / 2; i++)
+  {
+    arrs[i] = rand() % 1024 - 1;
+    fprintf(stdout, "add ret=%d\n", thread_pool_add_task(&p1, &arrs[i]));
+  }
+  sleep(4);
+  thread_pool_stop(&p1);
+  thread_pool_deinit(&p1);
+  return 0;
+}
+#endif
