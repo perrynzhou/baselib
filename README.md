@@ -1,12 +1,20 @@
 # cstl
+| author | update |
+| ------ | ------ |
+| perrynzhou@gmail.com | 2020/11/17 |
 
-## support data structure
-- cstl_string: define string operations(slice.h)
-- cstl_stack: stack operations(stack.h)
-- cstl_queue: fifo queue operations(queue.h)
-- cstl_object: each value as cstl_object include int/int32_t/int64_t/uint64_t/string/struct(object.h)
-- cstl_list: define list operations(list.h)
-- cstl_skiplist: define skiplist operations(skiplist.h)
-- cstl_md5:  define md5 operations for string and file (md5.h)
-- cstl_hashxxx:define a group of hash functions (hashfn.h)
-## how to usage
+#### 目前能提供的基础库
+
+  - thread_pool:RR模式任务处理的线程池
+  - slice:基于char *的字符串封装
+  - queue:队列的实现
+  - hashfn:比较全的哈希算法
+  - damon:守护进程试下
+  - crc:crc校验
+  - dict:使用哈希表实现的字段
+  - md5:md5的实现
+  - stack:栈的实现
+  - log:log的实现
+  - mem_pool:内存池的实现
+  - skiplist:跳表的实现
+  
