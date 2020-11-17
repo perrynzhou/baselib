@@ -14,7 +14,7 @@
 typedef int (*thread_func)(void *);
 typedef struct thread_pool_t
 {
-  sem_t sem;
+  sem_t *sems;
   pthread_t *threads;
   pthread_mutex_t mutex;
   int stop;
@@ -22,6 +22,7 @@ typedef struct thread_pool_t
   uint32_t max_requests;
   queue *requests;
   thread_func func;
+  int index;
 } thread_pool;
 
 thread_pool *thread_pool_create(uint32_t max_requests, int thread_count, thread_func func);

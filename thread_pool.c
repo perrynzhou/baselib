@@ -12,7 +12,59 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <unistd.h>
+#include <uuid/uuid.h>
+#include <string.h>
+#include <stdint.h>
+#define get16bits(d) (*((const uint16_t *)(d)))
+uint32_t super_fast_hash(const char *data, int32_t len)
+{
+    uint32_t hash = len, tmp;
+    int32_t rem;
 
+    if (len <= 1 || data == NULL)
+        return 1;
+
+    rem = len & 3;
+    len >>= 2;
+
+    /* Main loop */
+    for (; len > 0; len--) {
+        hash += get16bits(data);
+        tmp = (get16bits(data + 2) << 11) ^ hash;
+        hash = (hash << 16) ^ tmp;
+        data += 2 * sizeof(uint16_t);
+        hash += hash >> 11;
+    }
+
+    /* Handle end cases */
+    switch (rem) {
+        case 3:
+            hash += get16bits(data);
+            hash ^= hash << 16;
+            hash ^= data[sizeof(uint16_t)] << 18;
+            hash += hash >> 11;
+            break;
+        case 2:
+            hash += get16bits(data);
+            hash ^= hash << 11;
+            hash += hash >> 17;
+            break;
+        case 1:
+            hash += *data;
+            hash ^= hash << 10;
+            hash += hash >> 1;
+    }
+
+    /* Force "avalanching" of final 127 bits */
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
+}
 thread_pool *thread_pool_create(uint32_t max_requests, int thread_count, thread_func func)
 {
   thread_pool *pool = calloc(1, sizeof(thread_pool));
@@ -34,22 +86,28 @@ int thread_pool_init(thread_pool *pool, uint32_t max_requests, int thread_count,
     pool->stop = false;
     pool->thread_count = thread_count;
     pool->threads = calloc(thread_count, sizeof(pthread_t));
+    pool->sems =  calloc(thread_count, sizeof(sem_t));
     assert(pool->threads != NULL);
     pthread_mutex_init(&pool->mutex, NULL);
-    sem_init(&pool->sem, 0, 0);
+    int i;
+    for(i=0;i<thread_count;i++) {
+        sem_init(&pool->sems[i], 0, 0);
+
+    }
     return 0;
   }
   return -1;
 }
 static void *thread_pool_run(void *arg)
 {
-  thread_pool *pool = (thread_pool *)arg;
+   thread_pool *pool = (thread_pool *)arg;
+  fprintf(stdout,"thread index = %d\n",pool->index);
   while (!pool->stop)
   {
- 
-    sem_wait(&pool->sem);
+    sem_wait(&pool->sems[pool->index]);
     if (pool->stop)
     {
+      fprintf(stdout,"got stop %d\n",pool->sems[pool->index]);
       break;
     }
     pthread_mutex_lock(&pool->mutex);
@@ -66,6 +124,7 @@ static void *thread_pool_run(void *arg)
 }
   int thread_pool_append(thread_pool * pool, void *request)
   {
+    char key[36] = {'\0'};
     if (queue_len(pool->requests) >= pool->max_requests)
     {
       return -1;
@@ -74,7 +133,11 @@ static void *thread_pool_run(void *arg)
     void **value = (void **)queue_push(pool->requests);
     *value = request;
     pthread_mutex_unlock(&pool->mutex);
-    sem_post(&pool->sem);
+    uuid_t uuid;
+    uuid_generate(uuid);
+    uuid_unparse(uuid, key);
+    uint32_t index = super_fast_hash((char *)&key,strlen((char *)&key))%pool->thread_count;
+    sem_post(&pool->sems[index]);
     return 0;
   }
   void thread_pool_start(thread_pool * pool)
@@ -82,16 +145,20 @@ static void *thread_pool_run(void *arg)
     int i = 0;
     for (; i < pool->thread_count; i++)
     {
-      pthread_create(&pool->threads[i], NULL,thread_pool_run,pool);
+        pthread_mutex_lock(&pool->mutex);
+        pthread_create(&pool->threads[i], NULL,thread_pool_run,pool);
+        pool->index=i;
+        pthread_mutex_unlock(&pool->mutex);
+
     }
   }
   void thread_pool_stop(thread_pool * pool)
   {
     if(pool !=NULL) {
-      pool->stop = true;
       int i=0;
       for(;i<pool->thread_count;i++) {
-          sem_post(&pool->sem);
+          pool->stop = true;
+          sem_post(&pool->sems[i]);
       }
     }
   }
@@ -105,7 +172,7 @@ static void *thread_pool_run(void *arg)
         pthread_join(pool->threads[i],NULL);
       }
       pthread_mutex_destroy(&pool->mutex);
-      sem_destroy(&pool->sem);
+     // sem_destroy(&pool->sem);
       return 0;
     }
     return -1;
