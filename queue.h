@@ -8,6 +8,7 @@
 #ifndef _QUEUE_H
 #define _QUEUE_H
 #include <stdbool.h>
+#include <stddef.h>
 typedef struct queue_node_t queue_node;
 typedef struct queue_t
 {
