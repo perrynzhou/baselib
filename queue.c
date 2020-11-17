@@ -26,7 +26,7 @@ int queue_init(queue *q, size_t size)
 }
 queue *queue_create(size_t size)
 {
-  struct queue *q = (queue *)calloc(1, sizeof(queue));
+  queue *q = (queue *)calloc(1, sizeof(queue));
   if (queue_init(q, size) != 0)
   {
     free(q);
@@ -58,7 +58,7 @@ void *queue_push(queue *q)
       q->tail->next = node;
       q->tail = node;
     }
-    q->size++;
+    q->nelem++;
     data = &node->data;
   }
   return data;
@@ -70,14 +70,16 @@ void *queue_pop(queue *q)
   {
     queue_node *node = q->head;
     data = node->data;
-    q->head = node->next;
-    q->size--;
+    if(node!=NULL) {
+      q->head = node->next;
+    }
+    q->nelem--;
   }
   return data;
 }
 void queue_releae_elem(void *data)
 {
-  queue_node *node = (char *)data - sizeof(queue_node);
+  queue_node *node = (void *)data - sizeof(queue_node);
   free(node);
   node = NULL;
 }
@@ -98,7 +100,7 @@ void queue_deinit(queue *q)
     for (node = q->head; node != NULL; node = node->next)
     {
       free(node);
-      q->size--;
+      q->nelem--;
     }
   }
 }
