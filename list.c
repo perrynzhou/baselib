@@ -24,23 +24,25 @@ inline static void list_node_destroy(list_node *node)
     node = NULL;
   }
 }
-int list_init(list *lt, int64_t cap, list_cb_func func)
+int list_init(list *lt, int64_t cap, list_push_cb_func push_func, list_pop_cb_func pop_func, list_free_cb_func free_func)
 {
   if (lt != NULL)
   {
     lt->cap = cap;
     lt->size = 0;
-    lt->func = func;
+    lt->push_func = push_func;
+    lt->free_func = free_func;
+    lt->pop_func = pop_func;
     lt->head = lt->tail = NULL;
     return 0;
   }
   return -1;
 }
-list *list_create(int64_t cap, list_cb_func func)
+list *list_create(int64_t cap, list_push_cb_func push_func, list_pop_cb_func pop_func, list_free_cb_func free_func)
 {
   list *lt = calloc(1, sizeof(list));
   assert(lt != NULL);
-  if (list_init(lt, cap, func) != 0)
+  if (list_init(lt, cap, push_func, pop_func, free_func) != 0)
   {
     free(lt);
     lt = NULL;
@@ -60,15 +62,15 @@ int list_push_node(list *lt, uint32_t index, list_node *node)
     {
       if (index == 0)
       {
-        lt->tail->next = node;
-        node->prev = lt->tail;
-        lt->tail = node;
-      }
-      else if (index == lt->size - 1)
-      {
         lt->head->prev = node;
         node->next = lt->head;
         lt->head = node;
+      }
+      else if (index == lt->size - 1)
+      {
+        lt->tail->next = node;
+        node->prev = lt->tail;
+        lt->tail = node;
       }
       else
       {
@@ -93,6 +95,10 @@ int list_push_node(list *lt, uint32_t index, list_node *node)
       }
     }
     __sync_fetch_and_add(&lt->size, 1);
+    if (lt->push_func != NULL)
+    {
+      lt->push_func(node->data);
+    }
     return 0;
   }
   return -1;
@@ -140,6 +146,10 @@ int list_pop_node(list *lt, list_node *node)
     }
     node->prev = node->next = NULL;
     __sync_fetch_and_sub(&lt->size, 1);
+    if (lt->pop_func != NULL)
+    {
+      lt->pop_func(node->data);
+    }
     return 0;
   }
   return -1;
@@ -208,9 +218,9 @@ int list_deinit(list *lt)
     list_node *current = lt->head;
     while (current != NULL)
     {
-      if (lt->func != NULL)
+      if (lt->free_func != NULL)
       {
-        lt->func(current->data);
+        lt->free_func(current->data);
       }
       list_node_destroy(current);
       current = current->next;
