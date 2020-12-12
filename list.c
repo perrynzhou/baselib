@@ -8,6 +8,7 @@
 #include "list.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 inline static list_node *list_node_create(void *data)
 {
   list_node *node = calloc(1, sizeof(list_node));
@@ -51,7 +52,7 @@ list *list_create(int64_t cap, list_push_cb_func push_func, list_pop_cb_func pop
 }
 int list_push_node(list *lt, uint32_t index, list_node *node)
 {
-  if (lt != NULL && lt->size > 0)
+  if (lt != NULL)
   {
 
     if (lt->size == 0)
@@ -78,7 +79,7 @@ int list_push_node(list *lt, uint32_t index, list_node *node)
         uint32_t pos = 0;
         while (current != NULL)
         {
-          if (pos == index)
+          if (pos == index - 1)
           {
             break;
           }
@@ -105,7 +106,7 @@ int list_push_node(list *lt, uint32_t index, list_node *node)
 }
 int list_push_back(list *lt, void *data)
 {
-  if (lt != NULL && lt->size < lt->cap)
+  if (lt != NULL && (lt->size < lt->cap || lt->cap == -1))
   {
     list_node *node = list_node_create(data);
     assert(node != NULL);
@@ -115,7 +116,7 @@ int list_push_back(list *lt, void *data)
 }
 int list_push_front(list *lt, void *data)
 {
-  if (lt != NULL && lt->size < lt->cap)
+  if (lt != NULL && (lt->size < lt->cap || lt->cap == -1))
   {
 
     list_node *node = list_node_create(data);
@@ -156,7 +157,7 @@ int list_pop_node(list *lt, list_node *node)
 }
 int list_push(list *lt, uint32_t index, void *data)
 {
-  if (lt != NULL && lt->size >= lt->cap)
+  if (lt != NULL && lt->cap != -1 && lt->size >= lt->cap)
   {
     return -1;
   }
@@ -199,7 +200,7 @@ void *list_pop(list *lt, uint32_t index)
     uint32_t pos = 0;
     while (current != NULL)
     {
-      if (pos == index)
+      if (pos == index - 1)
       {
         break;
       }
@@ -227,6 +228,7 @@ int list_deinit(list *lt)
     }
   }
 }
+
 void list_destroy(list *lt)
 {
   if (list_deinit(lt) == 0)
@@ -235,3 +237,87 @@ void list_destroy(list *lt)
     lt = NULL;
   }
 }
+#ifdef TEST
+#include <string.h>
+static void list_dump(list *lt)
+{
+  if (lt != NULL && lt->size > 0)
+  {
+    list_node *current = lt->head;
+    fprintf(stdout, "list:%d{ ", lt->size);
+    while (current != NULL)
+    {
+      list_node *next = current->next;
+      if (next == NULL)
+      {
+        fprintf(stdout, "%s", (char *)current->data);
+      }
+      else
+      {
+        fprintf(stdout, "%s,", (char *)current->data);
+      }
+      current = current->next;
+    }
+    fprintf(stdout, "}\n");
+  }
+}
+int main(void)
+{
+  list *lt = list_create(20, NULL, NULL, NULL);
+  int n = 10;
+  char *val[n];
+  for (int i = 0; i < n; i++)
+  {
+    char buf[64] = {'\0'};
+    snprintf((char *)&buf, 64, "%d", rand() % 256);
+    val[i] = strdup((char *)&buf);
+
+    if (i % 2 == 0)
+    {
+      fprintf(stdout, "-------------push back index=%d,val=%s-----------\n", i, val[i]);
+
+      list_push_back(lt, val[i]);
+    }
+    else
+    {
+      fprintf(stdout, "-------------push front index=%d,val=%s-----------\n", i, val[i]);
+
+      list_push_front(lt, val[i]);
+    }
+    list_dump(lt);
+  }
+  char *v = list_pop_back(lt);
+  fprintf(stdout, "-------------pop back val=%s-----------\n", v);
+  list_dump(lt);
+
+  v = list_pop_front(lt);
+
+  fprintf(stdout, "-------------pop front val=%s-----------\n", v);
+  list_dump(lt);
+  uint32_t index = rand() % lt->size;
+  char buf[64] = {'\0'};
+  snprintf((char *)&buf, 64, "%d", rand() % 256);
+  v = strdup((char *)&buf);
+  list_push(lt, index, v);
+  fprintf(stdout, "-------------push  index=%d,val=%s-----------\n", index, v);
+  list_dump(lt);
+
+  index = rand() % lt->size;
+  snprintf((char *)&buf, 64, "%d", rand() % 256);
+  v = strdup((char *)&buf);
+  list_push(lt, index, v);
+  fprintf(stdout, "-------------push  index=%d,val=%s-----------\n", index, v);
+  list_dump(lt);
+  index = rand() % lt->size;
+  v = list_pop(lt, index);
+  fprintf(stdout, "-------------pop  index=%d,val=%s-----------\n", index, v);
+  list_dump(lt);
+  index = rand() % lt->size;
+
+  v = list_pop(lt, index);
+  fprintf(stdout, "-------------pop  index=%d,val=%s-----------\n", index, v);
+
+  list_dump(lt);
+  list_destroy(lt);
+}
+#endif
