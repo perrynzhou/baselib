@@ -40,7 +40,7 @@ typedef struct lru_cache_t
 } lru_cache;
 
 lru_cache *lru_cache_create(uint32_t cap, lru_hash_func func, lru_cmp_func cmp_func, lru_key_func key_func, lru_val_func val_func);
-int lru_cache_init(lru_cache *cache, uint32_t cap, lru_hash_func func, lru_cmp_func cmp_func, lru_key_func key_func, lru_val_func val_func);
+int lru_cache_init(lru_cache *cache, uint32_t cap, lru_hash_func hash_func, lru_cmp_func cmp_func, lru_key_func key_func, lru_val_func val_func);
 void *lru_cache_put(lru_cache *cache, void *key, uint32_t key_len, void *val);
 void *lru_cache_get(lru_cache *cache, void *key, uint32_t key_len);
 void lru_cache_deinit(lru_cache *cache);
