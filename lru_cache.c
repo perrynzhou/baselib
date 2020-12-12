@@ -581,6 +581,26 @@ static void lru_cache_dump_list(lru_cache *cache)
   fprintf(stdout, "]\n ");
 }
 
+static void *lru_cache_list_rand_key(lru_cache *cache)
+{
+  uint32_t index = hash_jump_consistent(rand(), cache->size);
+  if (index == 0)
+  {
+    index = rand() % cache->size;
+  }
+  lru_list *list = cache->list;
+  lru_node *cur = list->head;
+  while (1)
+  {
+    if (index == 0)
+    {
+      break;
+    }
+    cur = cur->next;
+    index--;
+  }
+  return cur->key;
+}
 #ifdef TEST
 #include <string.h>
 #include <stdio.h>
@@ -615,18 +635,21 @@ int key_func(void *key)
 }
 int main(void)
 {
-  int n = 6;
+  int n = 10;
   char *keys[n];
   char *vals[n];
-  for (int i = 0; i < 6; i++)
+  char *key = malloc(64);
+  char *value = malloc(64);
+  for (int i = 0; i < n; i++)
   {
     int j = i;
-    char buffer[64] = {'\0'};
-    snprintf((char *)&buffer, 64, "%d", j);
-    vals[i] = strdup((char *)&buffer);
-    keys[i] = strdup((char *)&buffer);
+    snprintf(key, 64, "%d", j + rand() % 64);
+    keys[i] = strdup(key);
+    snprintf(value, 64, "%d", j + rand() % 128);
+    vals[i] = strdup(value);
   }
-  lru_cache *cache = lru_cache_create(3, NULL, cmp_func, key_func, value_func);
+  fprintf(stdout, "----------------------------put operation----------------------\n\n");
+  lru_cache *cache = lru_cache_create(4, NULL, cmp_func, key_func, value_func);
   for (int i = 0; i < n; i++)
   {
     lru_cache_put(cache, keys[i], strlen(keys[i]), vals[i]);
@@ -634,15 +657,15 @@ int main(void)
     lru_cache_dump_table(cache);
     lru_cache_dump_list(cache);
   }
-  lru_cache_get(cache, keys[4], strlen(keys[4]));
-  fprintf(stdout, "***************get %s dump**************\n", keys[4]);
-  lru_cache_dump_table(cache);
-  lru_cache_dump_list(cache);
-
-  lru_cache_get(cache, keys[3], strlen(keys[3]));
-  fprintf(stdout, "***************get %s dump**************\n", keys[3]);
-  lru_cache_dump_table(cache);
-  lru_cache_dump_list(cache);
+  fprintf(stdout, "\n----------------------------get operation----------------------\n\n");
+  for (int i = 0; i < n; i++)
+  {
+    char *key = lru_cache_list_rand_key(cache);
+    lru_cache_get(cache, key, strlen(key));
+    fprintf(stdout, "***************get %s dump**************\n", key);
+    lru_cache_dump_table(cache);
+    lru_cache_dump_list(cache);
+  }
   lru_cache_destroy(cache);
   return 0;
 }
