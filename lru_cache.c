@@ -88,7 +88,7 @@ inline static void lru_node_destroy(lru_node *node)
     node = NULL;
   }
 }
-lru_list *lru_list_create(lru_cmp_func cmp_func, lru_key_func key_func, lru_val_func val_func)
+inline static lru_list *lru_list_create(lru_cmp_func cmp_func, lru_key_func key_func, lru_val_func val_func)
 {
   lru_list *list = (lru_list *)calloc(1, sizeof(lru_list));
   assert(list != NULL);
@@ -218,11 +218,12 @@ static int lru_cache_expire(lru_cache *cache)
   }
   lru_list *expire_list = cache->list;
   lru_node *expire_node = expire_list->tail;
-  lru_list *index_list = (lru_list *)expire_node->link;
-  lru_node *remove_node = lru_list_find(index_list, expire_node->key, expire_node->key_len);
+  uint32_t index = cache->hash_func(expire_node->key, expire_node->key_len);
+  lru_list *index_list = cache->tables[index];
+  lru_node *remove_node = expire_node->link;
   if (remove_node != NULL)
   {
-    lru_list_pop(expire_list, remove_node);
+    lru_list_pop(index_list, remove_node);
     index_list->key_func(remove_node->key);
     index_list->val_func(remove_node->val);
     lru_node_destroy(remove_node);
@@ -234,6 +235,7 @@ static int lru_cache_expire(lru_cache *cache)
     expire_list->val_func(expire_node->val);
     lru_node_destroy(expire_node);
   }
+  __sync_fetch_and_sub(&cache->size, 1);
   return 0;
 }
 void *lru_cache_put(lru_cache *cache, void *key, uint32_t key_len, void *val)
@@ -260,9 +262,10 @@ void *lru_cache_put(lru_cache *cache, void *key, uint32_t key_len, void *val)
   lru_node *new_node = lru_node_create(key, key_len, val);
   lru_node *link_node = lru_node_create(key, key_len, val);
   new_node->link = link_node;
-  link_node->link = index_list;
+  link_node->link = new_node;
   lru_list_push(index_list, new_node);
   lru_list_push(cache->list, link_node);
+  __sync_fetch_and_add(&cache->size, 1);
   return link_node->val;
 }
 void *lru_cache_get(lru_cache *cache, void *key, uint32_t key_len)
@@ -272,8 +275,7 @@ void *lru_cache_get(lru_cache *cache, void *key, uint32_t key_len)
   lru_node *cache_node = lru_list_find(index_list, key, key_len);
   if (cache_node != NULL)
   {
-
-    lru_node *link = (lru_node *)cache_node->link;
+    lru_node *link = cache_node->link;
     lru_list_pop(cache->list, link);
     lru_list_push(cache->list, link);
     return cache_node->val;
@@ -305,3 +307,52 @@ void lru_cache_destroy(lru_cache *cache)
     free(cache);
   }
 }
+
+#ifdef TEST
+int lru_cmp_func(void *key1, uint32_t key1_len, void *key2, uint32_t key2_len)
+{
+  const char *k1 = (const char *)key1;
+  const char *k2 = (const char *)key2;
+  return key1_len == key2_len && strncmp(k1, k2, key1_len) == 0;
+}
+int lru_val_func(void *val)
+{
+  if (val != NULL)
+  {
+    free(val);
+    val = NULL;
+  }
+  return 0;
+}
+int lru_key_func(void *key)
+{
+  if (key != NULL)
+  {
+    free(key);
+    key = NULL;
+  }
+  return 0;
+}
+int main(void)
+{
+  int n = 6;
+  char *keys[n];
+  char *vals[n];
+  for (int i = 0; i < 6; i++)
+  {
+    char buffer[64] = {'\0'};
+    snprintf(&buffer, 64, "%d", i);
+    vals[i] = strdup(&buffer);
+    keys[i] = strdup(&buffer);
+  }
+  lru_cache *cache = lru_cache_create(3, NULL, lru_cmp_func, lru_key_func, lru_value_func);
+  for (int i = 0; i < n; i++)
+  {
+    lru_cache_put(cache, keys[i], strlen(keys[i]), vals[i]);
+  }
+  lru_cache_get(cache, keys[2], strlen(keys[2]));
+  lru_cache_get(cache, keys[0], strlen(keys[0]));
+  lru_cache_destroy(cache);
+  return 0;
+}
+#endif

@@ -19,7 +19,7 @@ typedef struct lru_node_t
   uint32_t key_len;
   struct lru_node_t *prev;
   struct lru_node_t *next;
-  void *link;
+  struct lru_node_t *link;
 } lru_node;
 typedef struct lru_list_t
 {
