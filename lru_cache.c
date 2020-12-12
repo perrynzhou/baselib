@@ -622,8 +622,9 @@ int main(void)
   {
     int j = i;
     char buffer[64] = {'\0'};
-    snprintf((char *)&buffer, 64, "%d", j+rand()%64);
+    snprintf((char *)&buffer, 64, "%d", j + rand() % 64);
     vals[i] = strdup((char *)&buffer);
+    snprintf((char *)&buffer, 64, "%d", j + rand() % 128);
     keys[i] = strdup((char *)&buffer);
   }
   lru_cache *cache = lru_cache_create(4, NULL, cmp_func, key_func, value_func);
