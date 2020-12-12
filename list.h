@@ -8,7 +8,10 @@
 #ifndef _LIST_H
 #define _LIST_H
 #include <stdint.h>
-typedef int (*list_cb_func)(void *);
+typedef int (*list_push_cb_func)(void *);
+typedef int (*list_pop_cb_func)(void *);
+typedef int (*list_free_cb_func)(void *);
+
 typedef struct list_node_t
 {
   void *data;
@@ -21,10 +24,12 @@ typedef struct list_t
   list_node *tail;
   uint32_t size;
   int64_t cap;
-  list_cb_func func;
+  list_push_cb_func push_func;
+  list_pop_cb_func  pop_func;
+  list_free_cb_func free_func;
 } list;
-int list_init(list *lt, int64_t cap,list_cb_func func);
-list *list_create(int64_t cap,list_cb_func func);
+int list_init(list *lt, int64_t cap,list_push_cb_func push_func,list_pop_cb_func  pop_func,list_free_cb_func free_func);
+list *list_create(int64_t cap,list_push_cb_func push_func,list_pop_cb_func  pop_func,list_free_cb_func free_func);
 int list_push_back(list *lt, void *data);
 int list_push_front(list *lt, void *data);
 int list_push(list *lt, uint32_t index,void *data);
