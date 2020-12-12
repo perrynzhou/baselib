@@ -542,7 +542,7 @@ static void lru_cache_dump_table(lru_cache *cache)
     lru_list *list = cache->tables[i];
     if (list != NULL && list->size > 0)
     {
-      fprintf(stdout, "level:%d,[ ", i);
+      fprintf(stdout, "level:%d,count:%d[ ", i,list->size);
       lru_node *cur = list->head;
       while (cur != NULL)
       {
@@ -563,7 +563,7 @@ static void lru_cache_dump_table(lru_cache *cache)
 }
 static void lru_cache_dump_list(lru_cache *cache)
 {
-  fprintf(stdout, "expire:[ ");
+  fprintf(stdout, "expire %d [ ",cache->list->size);
   lru_node *cur = cache->list->head;
   while (cache->list->size > 0 && cur != NULL)
   {
