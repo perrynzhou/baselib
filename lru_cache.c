@@ -542,7 +542,7 @@ static void lru_cache_dump_table(lru_cache *cache)
     lru_list *list = cache->tables[i];
     if (list != NULL && list->size > 0)
     {
-      fprintf(stdout, "level:%d,[ ", i);
+      fprintf(stdout, "level:%d,count:%d[ ", i,list->size);
       lru_node *cur = list->head;
       while (cur != NULL)
       {
@@ -563,7 +563,7 @@ static void lru_cache_dump_table(lru_cache *cache)
 }
 static void lru_cache_dump_list(lru_cache *cache)
 {
-  fprintf(stdout, "expire:[ ");
+  fprintf(stdout, "expire %d [ ",cache->list->size);
   lru_node *cur = cache->list->head;
   while (cache->list->size > 0 && cur != NULL)
   {
@@ -633,9 +633,23 @@ int key_func(void *key)
   }
   return 0;
 }
-int main(void)
+int main(int argc, char *argv[])
 {
+  if (argc != 3)
+  {
+    fprintf(stdout, "usage:%s {cap} {insert_count}\n");
+    exit(-1);
+  }
+  int cap = 4;
   int n = 10;
+  if (argv[1] != NULL)
+  {
+    cap = atoi(argv[1]);
+  }
+  if (argv[2] != NULL)
+  {
+    n = atoi(argv[2]);
+  }
   char *keys[n];
   char *vals[n];
   char *key = malloc(64);
@@ -649,7 +663,7 @@ int main(void)
     vals[i] = strdup(value);
   }
   fprintf(stdout, "----------------------------put operation----------------------\n\n");
-  lru_cache *cache = lru_cache_create(4, NULL, cmp_func, key_func, value_func);
+  lru_cache *cache = lru_cache_create(cap, NULL, cmp_func, key_func, value_func);
   for (int i = 0; i < n; i++)
   {
     lru_cache_put(cache, keys[i], strlen(keys[i]), vals[i]);
