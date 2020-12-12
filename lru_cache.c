@@ -615,18 +615,18 @@ int key_func(void *key)
 }
 int main(void)
 {
-  int n = 6;
+  int n = 10;
   char *keys[n];
   char *vals[n];
-  for (int i = 0; i < 6; i++)
+  for (int i = 0; i < n; i++)
   {
     int j = i;
     char buffer[64] = {'\0'};
-    snprintf((char *)&buffer, 64, "%d", j);
+    snprintf((char *)&buffer, 64, "%d", j+rand()%64);
     vals[i] = strdup((char *)&buffer);
     keys[i] = strdup((char *)&buffer);
   }
-  lru_cache *cache = lru_cache_create(3, NULL, cmp_func, key_func, value_func);
+  lru_cache *cache = lru_cache_create(4, NULL, cmp_func, key_func, value_func);
   for (int i = 0; i < n; i++)
   {
     lru_cache_put(cache, keys[i], strlen(keys[i]), vals[i]);
