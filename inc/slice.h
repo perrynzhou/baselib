@@ -27,5 +27,5 @@ int slice_atoi(slice s);
 void slice_destroy(slice s);
 void slice_tolower(slice s);
 void slice_toupper(slice s);
-void slice_deinit(slice s);
+void slice_deinit(slice *s);
 #endif

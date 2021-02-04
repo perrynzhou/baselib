@@ -4,7 +4,7 @@
   > Mail:perrynzhou@gmail.com 
   > Created Time: Monday, September 07, 2020 AM10:26:15
  ************************************************************************/
-#include "slice.h"
+#include "../inc/slice.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -424,7 +424,7 @@ size_t slice_len(const slice s)
   }
   return 0;
 }
-static void slice_destroy_internal(slice s,bool flag)
+static void slice_destroy_internal(slice s)
 {
   void *data = NULL;
   unsigned char flags = s[-1];
@@ -454,17 +454,19 @@ static void slice_destroy_internal(slice s,bool flag)
     SLICE_HDR_VAR(64, s);
     data = sh;
   }
-  if (data != NULL && flag)
+  if (data != NULL)
   {
     free(data);
     s = NULL;
   }
 }
 void slice_destroy(slice s) {
-  slice_destroy_internal(s,true);
+  slice_destroy_internal(s);
 }
 void slice_deinit(slice *s) {
-  slice_destroy_internal(*s,false);
+  slice tmp = *s;
+  slice_destroy_internal(tmp);
+  *s = NULL;
 }
 static inline void slice_set_len(slice s, size_t newlen)
 {
