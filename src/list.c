@@ -9,22 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-inline static list_node *list_node_create(void *data,size_t elem_size)
-{
-  list_node *node = calloc(1, sizeof(list_node)+elem_size);
-  assert(node != NULL);
-  memcpy(node->elem,data,elem_size);
-  node->next = node->prev = NULL;
-  return node;
-}
-inline static void list_node_destroy(list_node *node)
-{
-  if (node != NULL)
-  {
-    free(node);
-    node = NULL;
-  }
-}
 int list_init(list *lt, uint32_t elem_size, int64_t cap)
 {
   if (lt != NULL)
@@ -33,188 +17,190 @@ int list_init(list *lt, uint32_t elem_size, int64_t cap)
     lt->size = 0;
     lt->elem_size = elem_size;
     lt->head = lt->tail = NULL;
-    lt->func.access = NULL;
-    lt->func.free=NULL;
-    lt->func.handle=NULL;
-    pthread_mutex_init(&lt->lock,NULL);
+    pthread_mutex_init(&lt->lock, NULL);
     return 0;
   }
   return -1;
 }
-list *list_create(uint32_t elem_size,int64_t cap)
+list *list_create(uint32_t elem_size, int64_t cap)
 {
   list *lt = calloc(1, sizeof(list));
   assert(lt != NULL);
-  if (list_init(lt,  elem_size, cap) != 0)
+  if (list_init(lt, elem_size, cap) != 0)
   {
     free(lt);
     lt = NULL;
   }
   return lt;
 }
-void *list_insert(list *lt, void *data,uint32_t index)
+int list_insert(list *lt, list_node *node, uint32_t index)
 {
-  if(lt==NULL ||(lt->cap>0 && lt->size>=lt->cap)) {
+  if (lt == NULL || (lt->cap > 0 && lt->size >= lt->cap))
+  {
     return NULL;
   }
-  list_node *node = list_node_create(data,lt->elem_size);
-  if(node==NULL) {
-    return  NULL;
-  }
   pthread_mutex_lock(&lt->lock);
-  if(lt->head==NULL) {
+  if (lt->head == NULL)
+  {
     lt->head = node;
     lt->tail = node;
-  }else{
-  if(index>0 && index>lt->size) {
-     lt->tail->next = node;
-     lt->tail = node;
-  }else if(index==0) {
+    lt->size++;
+    pthread_mutex_unlock(&lt->lock);
+
+    return 0;
+  }
+  if (index <= 1)
+  {
     node->next = lt->head;
     lt->head->prev = node;
     lt->head = node;
-  }else {
-      uint32_t  pos = 1;
-
-      list_node *cur = lt->head;
-      while(cur!=NULL) {
-         if(pos == index) {
-           break;
-         }
-         cur = cur->next;
-         pos++;
-      }
-      list_node *next = cur->next;
-      if(next!=NULL) {
-        node->next = next;
-        next->prev = node;
-      }
-      if(cur!=NULL) {
-      cur->next = node;
-      node->prev = cur;
-      }
- 
-  }
-  }
-  lt->size++;
-  pthread_mutex_unlock(&lt->lock);
-  return (void *)&node->elem;
-}
-void *list_push_back(list *lt, void *data)
-{
-  return list_insert(lt,data,lt->size+1);
-}
-void *list_push_front(list *lt, void *data)
-{
- return list_insert(lt,data,0);
-}
-void *list_erase(list *lt, uint32_t index)
-{
-   if(lt==NULL||lt->size==0||index>lt->size) {
-     return NULL;
-   }
-   list_node *cur = NULL;
-   list_node *prev = NULL;
-   pthread_mutex_lock(&lt->lock);
-   uint32_t pos = 1;
-   cur = lt->head;
-   while(cur !=NULL)  {
-      if(pos == index) {
-        break;
-      }
-      prev = cur;
-      cur =   cur->next;
-      pos++;
-   }
-   if(cur==lt->head) {
-       if(lt->head !=lt->tail) {
-          
-       }else{
-
-       }
-   }
-   lt->size--;
+    lt->size++;
     pthread_mutex_unlock(&lt->lock);
 
-  return -1;
-}
-int list_push(list *lt, uint32_t index, void *data)
-{
-  if (lt != NULL && lt->cap != -1 && lt->size >= lt->cap)
-  {
-    return -1;
+    return 0;
   }
-  if (index <= lt->size)
+  if (index >= lt->size)
   {
-    list_node *node = list_node_create(data);
-    assert(node != NULL);
-    if (index == 0)
-    {
-      return list_push_node(lt, 0, node);
-    }
-    else if (index == lt->size - 1)
-    {
-      return list_push_node(lt, lt->size - 1, node);
-    }
-    else
-    {
-      return list_push_node(lt, index, node);
-    }
+    lt->tail->next = node;
+    lt->tail = node;
+    lt->size++;
+    pthread_mutex_unlock(&lt->lock);
+
+    return 0;
   }
-  return -1;
-}
-void *list_pop_back(list *lt)
-{
-  list_node *tail = lt->tail;
-  list_pop_node(lt, tail);
-  return tail->data;
-}
-void *list_pop_front(list *lt)
-{
-  list_node *head = lt->head;
-  list_pop_node(lt, head);
-  return head->data;
-}
-void *list_pop(list *lt, uint32_t index)
-{
-  if (lt != NULL && lt->size > 0 && index <= lt->size - 1)
+
+  uint32_t pos = 1;
+  list_node *cur = lt->head;
+  list_node *prev = NULL;
+  while (cur != NULL)
   {
-    list_node *current = lt->head;
-    uint32_t pos = 0;
-    while (current != NULL)
+    if (pos == index)
     {
-      if (pos == index - 1)
-      {
-        break;
-      }
-      current = current->next;
-      pos++;
+      break;
     }
-    list_pop_node(lt, current);
-    return current->data;
+    prev = cur;
+    cur = cur->next;
+    pos++;
   }
-  return NULL;
+  node->next = prev->next;
+  if (prev->next != NULL)
+  {
+    prev->next->prev = node;
+  }
+  prev->next = node;
+  node->prev = prev;
+  lt->size++;
+  pthread_mutex_unlock(&lt->lock);
+
+  return 0;
 }
-int list_deinit(list *lt)
+int list_push_back(list *lt, list_node *node)
+{
+  return list_insert(lt, node, lt->size + 1);
+}
+int list_push_front(list *lt, list_node *node)
+{
+  return list_insert(lt, node, 1);
+}
+list_node *list_pop_internal(list *lt, uint32_t index)
+{
+  list_node *node = NULL;
+  uint32_t nsize = lt->size + 1;
+  if (lt == NULL || lt->head == NULL || index > nsize || index < nsize)
+  {
+    return node;
+  }
+  pthread_mutex_lock(&lt->lock);
+  if (index == 1)
+  {
+    node = lt->head;
+    lt->head = node->next;
+    if (lt->head != NULL)
+    {
+      lt->head->prev = NULL;
+    }
+    if (node == lt->tail)
+    {
+      lt->head = NULL;
+      lt->tail = lt->head;
+    }
+    lt->size--;
+    pthread_mutex_unlock(&lt->lock);
+    return node;
+  }
+
+  if (index == lt->size)
+  {
+    list_node *node = lt->tail;
+    lt->tail = node->prev;
+    if (lt->tail != NULL)
+    {
+      lt->tail->next = NULL;
+    }
+    if (node == lt->head)
+    {
+      lt->tail = NULL;
+      lt->head = lt->tail;
+    }
+    lt->size--;
+    pthread_mutex_unlock(&lt->lock);
+    return node;
+  }
+  uint32_t pos = 1;
+  node = lt->head;
+  list_node *prev = NULL;
+  while (node != NULL)
+  {
+    if (pos == index)
+    {
+      break;
+    }
+    prev = node;
+    node = node->next;
+    pos++;
+  }
+  if (node->next != NULL)
+  {
+    node->next->prev = prev;
+  }
+  if (prev->next != NULL)
+  {
+    prev->next = node->next;
+  }
+  lt->size--;
+  pthread_mutex_unlock(&lt->lock);
+  return node;
+}
+
+list_node *list_pop_back(list *lt)
+{
+  return list_pop_internal(lt, lt->size);
+}
+list_node *list_pop_front(list *lt)
+{
+  return list_pop_internal(lt, 1);
+}
+list_node *list_pop(list *lt, uint32_t index)
+{
+  return list_pop_internal(lt, index);
+}
+int list_deinit(list *lt, free_data_cb cb)
 {
   if (lt != NULL)
   {
     list_node *current = lt->head;
     while (current != NULL)
     {
-      if (lt->free_func != NULL)
-      {
-        lt->free_func(current->data);
-      }
-      list_node_destroy(current);
+
+      list_node_destroy(current, cb);
       current = current->next;
     }
   }
 }
 
-void list_destroy(list *lt)
+void list_destroy(list *lt, free_data_cb cb)
 {
-  if (list_deinit(lt) == 0)
+  if (list_deinit(lt, cb) == 0)
   {
     free(lt);
     lt = NULL;
