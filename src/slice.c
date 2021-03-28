@@ -4,13 +4,14 @@
   > Mail:perrynzhou@gmail.com 
   > Created Time: Monday, September 07, 2020 AM10:26:15
  ************************************************************************/
-#include "slice.h"
+#include "../inc/slice.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <stdbool.h>
 #define SLICE_TYPE_5 0
 #define SLICE_TYPE_8 1
 #define SLICE_TYPE_16 2
@@ -423,7 +424,7 @@ size_t slice_len(const slice s)
   }
   return 0;
 }
-void slice_destroy(slice s)
+static void slice_destroy_internal(slice s)
 {
   void *data = NULL;
   unsigned char flags = s[-1];
@@ -458,6 +459,14 @@ void slice_destroy(slice s)
     free(data);
     s = NULL;
   }
+}
+void slice_destroy(slice s) {
+  slice_destroy_internal(s);
+}
+void slice_deinit(slice *s) {
+  slice tmp = *s;
+  slice_destroy_internal(tmp);
+  *s = NULL;
 }
 static inline void slice_set_len(slice s, size_t newlen)
 {
@@ -739,6 +748,15 @@ slice slice_create(const char *str)
     memcpy(s, str, initlen);
   }
   return s;
+}
+int slice_init(slice *s,const char *str) {
+  slice temp = slice_create(str);
+  if (temp == NULL)
+  {
+    return -1;
+  }
+  *s = temp;
+  return 0;
 }
 slice slice_fmt(slice s, char const *fmt, ...)
 {

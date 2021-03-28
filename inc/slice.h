@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdint.h>
 typedef char *slice;
+int slice_init(slice *s,const char *str);
 slice slice_create(const char *str);
 size_t slice_len(const slice s);
 slice slice_dup(const slice s);
@@ -26,4 +27,5 @@ int slice_atoi(slice s);
 void slice_destroy(slice s);
 void slice_tolower(slice s);
 void slice_toupper(slice s);
+void slice_deinit(slice *s);
 #endif
