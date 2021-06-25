@@ -1,186 +1,187 @@
-/*************************************************************************
-  > File Name: thread_pool.c
-  > Author:perrynzhou 
-  > Mail:perrynzhou@gmail.com 
-  > Created Time: 二 11/17 06:02:57 2020
- ************************************************************************/
+/**********************************
+ * @author      Johan Hanssen Seferidis
+ * License:     MIT
+ *
+ **********************************/
 
-#include "thread_pool.h"
-#include "queue.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdint.h>
-thread_pool *thread_pool_create(uint32_t max_requests, int thread_count, thread_func func)
-{
-  thread_pool *pool = calloc(1, sizeof(thread_pool));
-  assert(pool != NULL);
-  if (thread_pool_init(pool, max_requests, thread_count, func) != 0)
-  {
-    thread_pool_deinit(pool);
-    free(pool);
-    pool = NULL;
-  }
-  return pool;
-}
-static void *thread_pool_func(void *arg)
-{
-  thread_pool_ctx *ctx = (thread_pool_ctx *)arg;
-  thread_pool *pool = ctx->pool;
-  fprintf(stdout, " ctx index = %d\n", ctx->index);
-  while (!ctx->stop)
-  {
-    sem_wait(&ctx->sem);
-    if (ctx->stop)
-    {
-      fprintf(stdout, "got stop %d\n", ctx->index);
-      break;
-    }
-    pthread_mutex_lock(&pool->mutex);
-    if (queue_len(pool->requests) <= 0)
-    {
-      pthread_mutex_unlock(&pool->mutex);
-      continue;
-    }
-    pthread_mutex_unlock(&pool->mutex);
-    void **data = (void **)queue_pop(pool->requests);
-    pool->func(*data);
-  }
-  return NULL;
-}
-int thread_pool_init(thread_pool *pool, uint32_t max_requests, int thread_count, thread_func func)
-{
-  if (pool != NULL)
-  {
-    pool->func = func;
-    pool->max_requests = max_requests;
-    pool->requests = queue_create(sizeof(void **));
-    pool->ctx = (thread_pool_ctx *)calloc(thread_count, sizeof(thread_pool_ctx));
-    assert(pool->ctx != NULL);
+#ifndef _THPOOL_
+#define _THPOOL_
 
-    pool->thread_count = thread_count;
-    pthread_mutex_init(&pool->mutex, NULL);
-    pool->index = -1;
-    pool->status = false;
-    int i;
-    for (i = 0; i < thread_count; i++)
-    {
-      pool->ctx[i].index = i;
-      pool->ctx[i].pool = pool;
-      pool->ctx[i].stop = false;
-      sem_init(&pool->ctx[i].sem, 0, 0);
-    }
-    return 0;
-  }
-  return -1;
-}
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void thread_pool_run(thread_pool *pool)
-{
-  int i;
-  for (i = 0; i < pool->thread_count; i++)
-  {
-    if (!pool->status)
-    {
-      pool->status = true;
-    }
-    thread_pool_ctx *ctx = &pool->ctx[i];
-    pthread_create(&pool->ctx[i].tid, NULL, thread_pool_func, &pool->ctx[i]);
-  }
-}
-int thread_pool_add_task(thread_pool *pool, void *request)
-{
-  if (queue_len(pool->requests) >= pool->max_requests)
-  {
-    return -1;
-  }
-  pthread_mutex_lock(&pool->mutex);
-  void **value = (void **)queue_push(pool->requests);
-  if (pool->index >= pool->thread_count)
-  {
-    pool->index = -1;
-  }
-  pool->index++;
-  *value = request;
-  pthread_mutex_unlock(&pool->mutex);
-  sem_post(&pool->ctx[pool->index].sem);
-  return 0;
-}
+/* =================================== API ======================================= */
 
-void thread_pool_stop(thread_pool *pool)
-{
-  if (pool != NULL && pool->status)
-  {
-    int i = 0;
-    for (; i < pool->thread_count; i++)
-    {
-      pool->ctx[i].stop = true;
-      sem_post(&pool->ctx[i].sem);
-    }
-  }
-}
-int thread_pool_deinit(thread_pool *pool)
-{
-  if (pool != NULL && pool->thread_count > 0)
-  {
-    int i = 0;
-    for (; i < pool->thread_count; i++)
-    {
-      if (pool->status)
-      {
-        pthread_join(pool->ctx[i].tid, NULL);
-      }
-      sem_destroy(&pool->ctx[i].sem);
-    }
-    pthread_mutex_destroy(&pool->mutex);
-    queue_destroy(pool->requests);
-    free(pool->ctx);
-    return 0;
-  }
-  return -1;
-}
-void thread_pool_destroy(thread_pool *pool)
-{
-  if (thread_pool_deinit(pool) != -1)
-  {
-    free(pool);
-  }
-}
 
-#ifdef THREAD_POOL_TEST
-int test_func(void *arg)
-{
-  if (arg != NULL)
-  {
-    int *v = (int *)arg;
-    fprintf(stdout, "pthread id=%ld,handle value=%d\n", pthread_self(), *v);
-  }
-  return 0;
+typedef struct thpool_* threadpool;
+
+
+/**
+ * @brief  Initialize threadpool
+ *
+ * Initializes a threadpool. This function will not return until all
+ * threads have initialized successfully.
+ *
+ * @example
+ *
+ *    ..
+ *    threadpool thpool;                     //First we declare a threadpool
+ *    thpool = thpool_init(4);               //then we initialize it to 4 threads
+ *    ..
+ *
+ * @param  num_threads   number of threads to be created in the threadpool
+ * @return threadpool    created threadpool on success,
+ *                       NULL on error
+ */
+threadpool thpool_init(int num_threads);
+
+
+/**
+ * @brief Add work to the job queue
+ *
+ * Takes an action and its argument and adds it to the threadpool's job queue.
+ * If you want to add to work a function with more than one arguments then
+ * a way to implement this is by passing a pointer to a structure.
+ *
+ * NOTICE: You have to cast both the function and argument to not get warnings.
+ *
+ * @example
+ *
+ *    void print_num(int num){
+ *       printf("%d\n", num);
+ *    }
+ *
+ *    int main() {
+ *       ..
+ *       int a = 10;
+ *       thpool_add_work(thpool, (void*)print_num, (void*)a);
+ *       ..
+ *    }
+ *
+ * @param  threadpool    threadpool to which the work will be added
+ * @param  function_p    pointer to function to add as work
+ * @param  arg_p         pointer to an argument
+ * @return 0 on success, -1 otherwise.
+ */
+int thpool_add_work(threadpool, void (*function_p)(void*), void* arg_p);
+
+
+/**
+ * @brief Wait for all queued jobs to finish
+ *
+ * Will wait for all jobs - both queued and currently running to finish.
+ * Once the queue is empty and all work has completed, the calling thread
+ * (probably the main program) will continue.
+ *
+ * Smart polling is used in wait. The polling is initially 0 - meaning that
+ * there is virtually no polling at all. If after 1 seconds the threads
+ * haven't finished, the polling interval starts growing exponentially
+ * until it reaches max_secs seconds. Then it jumps down to a maximum polling
+ * interval assuming that heavy processing is being used in the threadpool.
+ *
+ * @example
+ *
+ *    ..
+ *    threadpool thpool = thpool_init(4);
+ *    ..
+ *    // Add a bunch of work
+ *    ..
+ *    thpool_wait(thpool);
+ *    puts("All added work has finished");
+ *    ..
+ *
+ * @param threadpool     the threadpool to wait for
+ * @return nothing
+ */
+void thpool_wait(threadpool);
+
+
+/**
+ * @brief Pauses all threads immediately
+ *
+ * The threads will be paused no matter if they are idle or working.
+ * The threads return to their previous states once thpool_resume
+ * is called.
+ *
+ * While the thread is being paused, new work can be added.
+ *
+ * @example
+ *
+ *    threadpool thpool = thpool_init(4);
+ *    thpool_pause(thpool);
+ *    ..
+ *    // Add a bunch of work
+ *    ..
+ *    thpool_resume(thpool); // Let the threads start their magic
+ *
+ * @param threadpool    the threadpool where the threads should be paused
+ * @return nothing
+ */
+void thpool_pause(threadpool);
+
+
+/**
+ * @brief Unpauses all threads if they are paused
+ *
+ * @example
+ *    ..
+ *    thpool_pause(thpool);
+ *    sleep(10);              // Delay execution 10 seconds
+ *    thpool_resume(thpool);
+ *    ..
+ *
+ * @param threadpool     the threadpool where the threads should be unpaused
+ * @return nothing
+ */
+void thpool_resume(threadpool);
+
+
+/**
+ * @brief Destroy the threadpool
+ *
+ * This will wait for the currently active threads to finish and then 'kill'
+ * the whole threadpool to free up memory.
+ *
+ * @example
+ * int main() {
+ *    threadpool thpool1 = thpool_init(2);
+ *    threadpool thpool2 = thpool_init(2);
+ *    ..
+ *    thpool_destroy(thpool1);
+ *    ..
+ *    return 0;
+ * }
+ *
+ * @param threadpool     the threadpool to destroy
+ * @return nothing
+ */
+void thpool_destroy(threadpool);
+
+
+/**
+ * @brief Show currently working threads
+ *
+ * Working threads are the threads that are performing work (not idle).
+ *
+ * @example
+ * int main() {
+ *    threadpool thpool1 = thpool_init(2);
+ *    threadpool thpool2 = thpool_init(2);
+ *    ..
+ *    printf("Working threads: %d\n", thpool_num_threads_working(thpool1));
+ *    ..
+ *    return 0;
+ * }
+ *
+ * @param threadpool     the threadpool of interest
+ * @return integer       number of threads working
+ */
+int thpool_num_threads_working(threadpool);
+
+
+#ifdef __cplusplus
 }
-int main(int argc, char *argv[])
-{
-  thread_pool p1;
-  thread_pool_init(&p1, 10, 2, test_func);
-  thread_pool_run(&p1);
-  int i = 0, n = 20;
-  int *arrs = calloc(n, sizeof(int));
-  for (; i < n / 2; i++)
-  {
-    arrs[i] = rand() % 1024 - 1;
-    fprintf(stdout, "add ret=%d\n", thread_pool_add_task(&p1, &arrs[i]));
-  }
-  sleep(1);
-  for (i = 0; i < n / 2; i++)
-  {
-    arrs[i] = rand() % 1024 - 1;
-    fprintf(stdout, "add ret=%d\n", thread_pool_add_task(&p1, &arrs[i]));
-  }
-  sleep(4);
-  thread_pool_stop(&p1);
-  thread_pool_deinit(&p1);
-  return 0;
-}
+#endif
+
 #endif
